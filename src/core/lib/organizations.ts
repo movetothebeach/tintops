@@ -15,6 +15,27 @@ export interface CreateOrganizationData {
 }
 
 export const organizationService = {
+  async updateOrganization(orgId: string, updates: Partial<Organization>): Promise<{ error: string | null }> {
+    try {
+      const adminClient = createAdminClient()
+
+      const { error } = await adminClient
+        .from('organizations')
+        .update(updates)
+        .eq('id', orgId)
+
+      if (error) {
+        console.error('Error updating organization:', error)
+        return { error: 'Failed to update organization' }
+      }
+
+      return { error: null }
+    } catch (error) {
+      console.error('Unexpected error updating organization:', error)
+      return { error: 'An unexpected error occurred' }
+    }
+  },
+
   async createOrganization(data: CreateOrganizationData): Promise<{ organization: Organization; error: null } | { organization: null; error: string }> {
     try {
       const adminClient = createAdminClient()

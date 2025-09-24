@@ -2,14 +2,19 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useAuth } from '@/core/contexts/AuthContext'
 import { useOrganization } from '@/core/contexts/OrganizationContext'
+import { useSubscription } from '@/core/hooks/useSubscription'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { CreditCard, CheckCircle, Clock, AlertTriangle } from 'lucide-react'
 
 export default function DashboardPage() {
   const { user, signOut, loading: authLoading } = useAuth()
   const { organization, loading: orgLoading } = useOrganization()
+  const subscription = useSubscription()
   const router = useRouter()
 
   useEffect(() => {
@@ -29,6 +34,26 @@ export default function DashboardPage() {
   const handleSignOut = async () => {
     await signOut()
     window.location.href = '/'
+  }
+
+  const getSubscriptionBadge = () => {
+    if (subscription.loading) return <Badge variant="outline">Loading...</Badge>
+
+    if (subscription.isActive) {
+      return <Badge className="bg-green-500"><CheckCircle className="h-3 w-3 mr-1" />Active</Badge>
+    }
+
+    if (subscription.isTrialing) {
+      const daysLeft = subscription.trialEndsAt ?
+        Math.max(0, Math.ceil((subscription.trialEndsAt.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))) : 0
+      return <Badge className="bg-blue-500"><Clock className="h-3 w-3 mr-1" />Trial ({daysLeft} days left)</Badge>
+    }
+
+    if (subscription.isPastDue) {
+      return <Badge variant="destructive"><AlertTriangle className="h-3 w-3 mr-1" />Past Due</Badge>
+    }
+
+    return <Badge variant="outline">No Subscription</Badge>
   }
 
   // Show loading while checking authentication
@@ -63,51 +88,128 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {/* Subscription Status Card */}
         <Card>
           <CardHeader>
-            <CardTitle>Welcome to TintOps!</CardTitle>
+            <CardTitle className="flex items-center justify-between">
+              Subscription
+              {getSubscriptionBadge()}
+            </CardTitle>
             <CardDescription>
-              Your organization has been created successfully.
+              Your current billing status and plan information
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {subscription.plan && (
+              <div>
+                <span className="text-sm text-muted-foreground">Plan:</span>
+                <p className="font-medium capitalize">{subscription.plan}</p>
+              </div>
+            )}
+
+            {subscription.trialEndsAt && subscription.isTrialing && (
+              <div>
+                <span className="text-sm text-muted-foreground">Trial ends:</span>
+                <p className="font-medium">
+                  {subscription.trialEndsAt.toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                  })}
+                </p>
+              </div>
+            )}
+
+            {subscription.currentPeriodEnd && subscription.isActive && (
+              <div>
+                <span className="text-sm text-muted-foreground">Next billing:</span>
+                <p className="font-medium">
+                  {subscription.currentPeriodEnd.toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                  })}
+                </p>
+              </div>
+            )}
+
+            <Button asChild variant="outline" className="w-full">
+              <Link href="/billing">
+                <CreditCard className="h-4 w-4 mr-2" />
+                Manage Billing
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Organization Info */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Organization</CardTitle>
+            <CardDescription>
+              Your TintOps workspace information
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <p>Email: {user?.email}</p>
-              <p>Organization: {organization?.name}</p>
-              <p>Status: {organization?.subscription_status}</p>
+            <div className="space-y-2 text-sm">
+              <div>
+                <span className="text-muted-foreground">Name:</span>
+                <p className="font-medium">{organization?.name}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Subdomain:</span>
+                <p className="font-medium">{organization?.subdomain}.tintops.app</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Owner:</span>
+                <p className="font-medium">{user?.email}</p>
+              </div>
             </div>
           </CardContent>
         </Card>
 
+        {/* Phase 5 Complete */}
         <Card>
           <CardHeader>
-            <CardTitle>Phase 4 Complete</CardTitle>
+            <CardTitle>Phase 5 Complete! 🎉</CardTitle>
             <CardDescription>
-              Authentication & Organizations
+              Stripe Billing Integration
             </CardDescription>
           </CardHeader>
           <CardContent>
             <ul className="text-sm space-y-1">
-              <li>✅ User authentication</li>
-              <li>✅ Organization creation</li>
-              <li>✅ Multi-tenant setup</li>
+              <li>✅ Subscription management</li>
+              <li>✅ Payment processing</li>
+              <li>✅ Billing portal</li>
+              <li>✅ 14-day free trials</li>
+              <li>✅ Webhook handling</li>
             </ul>
           </CardContent>
         </Card>
 
+        {/* Quick Actions */}
         <Card>
           <CardHeader>
-            <CardTitle>Coming Next</CardTitle>
+            <CardTitle>Quick Actions</CardTitle>
             <CardDescription>
-              Phase 5: Stripe Billing
+              Common tasks and navigation
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <ul className="text-sm space-y-1">
-              <li>⏳ Subscription management</li>
-              <li>⏳ Payment processing</li>
-              <li>⏳ Billing portal</li>
-            </ul>
+          <CardContent className="space-y-2">
+            <Button asChild variant="outline" className="w-full justify-start">
+              <Link href="/billing">
+                <CreditCard className="h-4 w-4 mr-2" />
+                View Billing
+              </Link>
+            </Button>
+            <Button variant="outline" className="w-full justify-start" disabled>
+              <span className="h-4 w-4 mr-2">👥</span>
+              Manage Team (Coming Soon)
+            </Button>
+            <Button variant="outline" className="w-full justify-start" disabled>
+              <span className="h-4 w-4 mr-2">📱</span>
+              SMS Setup (Coming Soon)
+            </Button>
           </CardContent>
         </Card>
       </div>
