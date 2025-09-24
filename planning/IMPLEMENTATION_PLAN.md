@@ -40,6 +40,9 @@ Phase 6: Core Features (Dashboard)
  Customer management CRUD
  User management (invite team members)
  Settings page
+ Server-side API validation
+ Security headers (CSP, HSTS, etc.)
+ CSRF protection
 Phase 7: SMS Integration (Requires Twilio)
 🛑 PAUSE HERE - User must set up Twilio account
 
@@ -68,3 +71,6 @@ Phase 10: Advanced Features
  Advanced automations
  Analytics dashboard
  API for integrations
+ Session management policies
+ Audit logging for admin operations
+ Concurrent session limits

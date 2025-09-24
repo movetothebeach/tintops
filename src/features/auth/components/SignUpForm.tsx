@@ -56,11 +56,8 @@ export function SignUpForm() {
         return
       }
 
-      // TODO: Create organization after successful signup
-      // This will be implemented when we add organization creation flow
-
-      // For now, redirect to a confirmation page
-      router.push('/auth/confirm')
+      // Redirect to onboarding after successful signup
+      router.push('/onboarding')
     } catch {
       setError('An unexpected error occurred')
     } finally {

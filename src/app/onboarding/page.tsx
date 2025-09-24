@@ -1,0 +1,218 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import * as z from 'zod'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import { useAuth } from '@/core/contexts/AuthContext'
+import { supabase } from '@/core/lib/supabase'
+
+const onboardingSchema = z.object({
+  fullName: z.string().min(2, 'Full name must be at least 2 characters'),
+  organizationName: z.string().min(2, 'Organization name must be at least 2 characters'),
+  subdomain: z.string()
+    .min(3, 'Subdomain must be at least 3 characters')
+    .regex(/^[a-z0-9-]+$/, 'Subdomain can only contain lowercase letters, numbers, and hyphens')
+    .regex(/^[a-z0-9]/, 'Subdomain must start with a letter or number')
+    .regex(/[a-z0-9]$/, 'Subdomain must end with a letter or number'),
+})
+
+type OnboardingForm = z.infer<typeof onboardingSchema>
+
+export default function OnboardingPage() {
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const { user, loading: authLoading } = useAuth()
+  const router = useRouter()
+
+  const form = useForm<OnboardingForm>({
+    resolver: zodResolver(onboardingSchema),
+    defaultValues: {
+      fullName: user?.user_metadata?.full_name || '',
+      organizationName: '',
+      subdomain: '',
+    },
+  })
+
+  useEffect(() => {
+    // Redirect if not authenticated
+    if (!authLoading && !user) {
+      router.push('/auth/login')
+    }
+
+    // Check if user already has an organization
+    if (user) {
+      checkExistingOrganization()
+    }
+  }, [user, authLoading, router])
+
+  async function checkExistingOrganization() {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+
+      const response = await fetch('/api/organizations', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      })
+
+      if (response.ok) {
+        const { organization } = await response.json()
+        if (organization) {
+          router.push('/dashboard')
+          return
+        }
+      }
+    } catch (error) {
+      console.error('Error checking organization:', error)
+    }
+  }
+
+  async function onSubmit(values: OnboardingForm) {
+    try {
+      setIsLoading(true)
+      setError(null)
+
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        setError('Please log in again')
+        return
+      }
+
+      const response = await fetch('/api/organizations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          name: values.organizationName,
+          subdomain: values.subdomain,
+          ownerName: values.fullName,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        setError(data.error || 'Failed to create organization')
+        return
+      }
+
+      // Success! Redirect to dashboard
+      router.push('/dashboard')
+    } catch (error) {
+      setError('An unexpected error occurred')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  if (authLoading) {
+    return <div className="flex h-screen items-center justify-center">Loading...</div>
+  }
+
+  if (!user) {
+    return null // Will redirect
+  }
+
+  return (
+    <div className="container flex h-screen w-screen flex-col items-center justify-center">
+      <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[450px]">
+        <div className="flex flex-col space-y-2 text-center">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Welcome to TintOps!
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Let&apos;s set up your tint shop organization
+          </p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Organization Setup</CardTitle>
+            <CardDescription>
+              Create your organization to get started with TintOps
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="fullName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Your Full Name</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Enter your full name"
+                          disabled={isLoading}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="organizationName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Shop Name</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Your tint shop name"
+                          disabled={isLoading}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="subdomain"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Subdomain</FormLabel>
+                      <FormControl>
+                        <div className="flex">
+                          <Input
+                            placeholder="your-shop"
+                            disabled={isLoading}
+                            {...field}
+                          />
+                          <span className="flex items-center px-3 text-sm text-muted-foreground">
+                            .tintops.app
+                          </span>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {error && (
+                  <div className="text-sm font-medium text-destructive">
+                    {error}
+                  </div>
+                )}
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? 'Creating organization...' : 'Create Organization'}
+                </Button>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
