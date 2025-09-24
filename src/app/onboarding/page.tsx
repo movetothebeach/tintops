@@ -30,40 +30,75 @@ export default function OnboardingPage() {
   const [error, setError] = useState<string | null>(null)
   const [isGeneratingSubdomain, setIsGeneratingSubdomain] = useState(false)
   const [subdomainGenerated, setSubdomainGenerated] = useState(false)
+  const [pageReady, setPageReady] = useState(false)
+  const [initializing, setInitializing] = useState(true)
+  const [redirecting, setRedirecting] = useState(false)
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
 
   const form = useForm<OnboardingForm>({
     resolver: zodResolver(onboardingSchema),
     defaultValues: {
-      fullName: user?.user_metadata?.full_name || '',
+      fullName: '',
       organizationName: '',
       subdomain: '',
     },
   })
 
-  const checkExistingOrganization = useCallback(async () => {
+  // Single initialization function to prevent race conditions
+  const initializePage = useCallback(async () => {
+    setInitializing(true)
+    let willRedirect = false
+
     try {
+      // Wait for auth to finish loading
+      if (authLoading) return
+
+      // Check if user is authenticated
+      if (!user) {
+        willRedirect = true
+        setRedirecting(true)
+        router.push('/auth/login')
+        return
+      }
+
+      // Set user's full name from metadata
+      if (user.user_metadata?.full_name) {
+        form.setValue('fullName', user.user_metadata.full_name)
+      }
+
+      // Check if user already has an organization
       const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return
+      if (session) {
+        const response = await fetch('/api/organizations', {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+        })
 
-      const response = await fetch('/api/organizations', {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-      })
-
-      if (response.ok) {
-        const { organization } = await response.json()
-        if (organization) {
-          router.push('/dashboard')
-          return
+        if (response.ok) {
+          const { organization } = await response.json()
+          if (organization) {
+            willRedirect = true
+            setRedirecting(true)
+            router.push('/dashboard')
+            return
+          }
         }
       }
+
+      // All checks passed, page is ready
+      setPageReady(true)
     } catch (err) {
-      console.error('Error checking organization:', err)
+      console.error('Error initializing page:', err)
+      setError('Failed to load page. Please try again.')
+    } finally {
+      // Only stop loading if we're not redirecting
+      if (!willRedirect) {
+        setInitializing(false)
+      }
     }
-  }, [router])
+  }, [user, authLoading, router, form])
 
   // Debounced subdomain generation
   const generateSubdomain = useCallback(async (organizationName: string) => {
@@ -101,35 +136,31 @@ export default function OnboardingPage() {
     }
   }, [form])
 
-  // Debounce the subdomain generation
+  // Run initialization once
+  useEffect(() => {
+    initializePage()
+  }, [initializePage])
+
+  // Optimized debounced subdomain generation (only runs when page is ready)
   const debouncedGenerateSubdomain = useMemo(() => {
     let timeoutId: NodeJS.Timeout
     return (organizationName: string) => {
       clearTimeout(timeoutId)
-      timeoutId = setTimeout(() => generateSubdomain(organizationName), 500)
+      timeoutId = setTimeout(() => {
+        if (pageReady) {
+          generateSubdomain(organizationName)
+        }
+      }, 500)
     }
-  }, [generateSubdomain])
+  }, [generateSubdomain, pageReady])
 
-  // Watch organization name changes
+  // Watch organization name changes (only when page is ready)
   const watchedOrgName = form.watch('organizationName')
   useEffect(() => {
-    if (watchedOrgName && !form.formState.dirtyFields.subdomain) {
+    if (pageReady && watchedOrgName && !form.formState.dirtyFields.subdomain) {
       debouncedGenerateSubdomain(watchedOrgName)
     }
-  }, [watchedOrgName, debouncedGenerateSubdomain, form.formState.dirtyFields.subdomain])
-
-  useEffect(() => {
-    // Redirect if not authenticated
-    if (!authLoading && !user) {
-      router.push('/auth/login')
-      return
-    }
-
-    // Check if user already has an organization
-    if (user) {
-      checkExistingOrganization()
-    }
-  }, [user, authLoading, router, checkExistingOrganization])
+  }, [watchedOrgName, debouncedGenerateSubdomain, form.formState.dirtyFields.subdomain, pageReady])
 
   async function onSubmit(values: OnboardingForm) {
     try {
@@ -171,12 +202,32 @@ export default function OnboardingPage() {
     }
   }
 
-  if (authLoading) {
-    return <div className="flex h-screen items-center justify-center">Loading...</div>
+  // Show loading during initialization or redirect
+  if (initializing || redirecting || !pageReady) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="flex items-center space-x-2">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span className="text-sm font-medium">
+            {redirecting ? 'Redirecting...' : 'Loading...'}
+          </span>
+        </div>
+      </div>
+    )
   }
 
-  if (!user) {
-    return null // Will redirect
+  // Show error state if initialization failed
+  if (error && !pageReady) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <p className="text-sm font-medium text-destructive mb-2">{error}</p>
+          <Button onClick={initializePage} variant="outline">
+            Try Again
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
