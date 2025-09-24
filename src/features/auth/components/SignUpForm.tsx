@@ -49,7 +49,7 @@ export function SignUpForm() {
       setError(null)
 
       // First, sign up the user
-      const { data, error } = await signUp(values.email, values.password)
+      const { error } = await signUp(values.email, values.password)
 
       if (error) {
         setError(error.message)
@@ -61,7 +61,7 @@ export function SignUpForm() {
 
       // For now, redirect to a confirmation page
       router.push('/auth/confirm')
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred')
     } finally {
       setIsLoading(false)

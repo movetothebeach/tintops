@@ -8,14 +8,14 @@ export default function ConfirmPage() {
           <CardHeader>
             <CardTitle>Check your email</CardTitle>
             <CardDescription>
-              We've sent you a confirmation link to complete your account setup.
+              We&apos;ve sent you a confirmation link to complete your account setup.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
                 Please check your email and click the confirmation link to activate your account.
-                If you don't see the email, check your spam folder.
+                If you don&apos;t see the email, check your spam folder.
               </p>
               <div className="rounded-lg bg-muted p-4">
                 <p className="text-sm">

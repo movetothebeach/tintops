@@ -1,9 +1,8 @@
 import { supabase } from './supabase'
 import { type User } from '@supabase/supabase-js'
 
-export interface AuthUser extends User {
-  // Add any additional user properties we might need
-}
+// AuthUser type for future extensions
+export type AuthUser = User
 
 export const auth = {
   // Sign up new user
@@ -44,7 +43,7 @@ export const auth = {
 
   // Listen to auth state changes
   onAuthStateChange(callback: (user: User | null) => void) {
-    return supabase.auth.onAuthStateChange((event, session) => {
+    return supabase.auth.onAuthStateChange((_event, session) => {
       callback(session?.user ?? null)
     })
   },
