@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/core/contexts/AuthContext'
 import { supabase } from '@/core/lib/supabase'
+import { logger } from '@/core/lib/logger'
 
 interface SubscriptionStatus {
   isActive: boolean
@@ -58,7 +59,14 @@ export function useSubscription(): SubscriptionStatus {
           throw new Error('Failed to fetch organization')
         }
 
-        const { organization } = await response.json()
+        let organization
+        try {
+          const result = await response.json()
+          organization = result.organization
+        } catch (jsonError) {
+          logger.error('Failed to parse organization response', jsonError)
+          throw new Error('Invalid response from server')
+        }
 
         if (!organization) {
           setSubscriptionData(prev => ({ ...prev, loading: false }))
@@ -99,7 +107,7 @@ export function useSubscription(): SubscriptionStatus {
         })
 
       } catch (error) {
-        console.error('Error fetching subscription status:', error)
+        logger.error('Error fetching subscription status', error)
         setSubscriptionData(prev => ({
           ...prev,
           loading: false,

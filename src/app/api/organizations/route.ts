@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { organizationService } from '@/core/lib/organizations'
 import { isReservedSubdomain, isValidSlug } from '@/core/utils/slug'
 import { supabase } from '@/core/lib/supabase'
+import { logger } from '@/core/lib/logger'
 
 export async function POST(request: NextRequest) {
   try {
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ organization: result.organization })
   } catch (error) {
-    console.error('Error in organization creation API:', error)
+    logger.error('Error in organization creation API', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -87,7 +88,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ organization: result.organization })
   } catch (error) {
-    console.error('Error in organization GET API:', error)
+    logger.error('Error in organization GET API', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

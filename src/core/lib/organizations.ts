@@ -1,6 +1,7 @@
 import { createAdminClient } from './supabase'
 import { Database } from '@/core/types/database'
 import { isReservedSubdomain } from '@/core/utils/slug'
+import { logger } from './logger'
 
 type Organization = Database['public']['Tables']['organizations']['Row']
 type OrganizationInsert = Database['public']['Tables']['organizations']['Insert']
@@ -25,13 +26,13 @@ export const organizationService = {
         .eq('id', orgId)
 
       if (error) {
-        console.error('Error updating organization:', error)
+        logger.error('Error updating organization', error)
         return { error: 'Failed to update organization' }
       }
 
       return { error: null }
     } catch (error) {
-      console.error('Unexpected error updating organization:', error)
+      logger.error('Unexpected error updating organization', error)
       return { error: 'An unexpected error occurred' }
     }
   },
@@ -56,7 +57,7 @@ export const organizationService = {
         .single()
 
       if (orgError || !organization) {
-        console.error('Error creating organization:', orgError)
+        logger.error('Error creating organization', orgError)
         return { organization: null, error: 'Failed to create organization' }
       }
 
@@ -75,7 +76,7 @@ export const organizationService = {
         .insert(userInsert)
 
       if (userError) {
-        console.error('Error creating user record:', userError)
+        logger.error('Error creating user record', userError)
         // Clean up organization if user creation failed
         await adminClient.from('organizations').delete().eq('id', organization.id)
         return { organization: null, error: 'Failed to create user record' }
@@ -83,7 +84,7 @@ export const organizationService = {
 
       return { organization, error: null }
     } catch (error) {
-      console.error('Unexpected error in createOrganization:', error)
+      logger.error('Unexpected error in createOrganization', error)
       return { organization: null, error: 'An unexpected error occurred' }
     }
   },
@@ -104,7 +105,7 @@ export const organizationService = {
 
       return { organization: user.organizations as Organization, error: null }
     } catch (error) {
-      console.error('Error getting organization:', error)
+      logger.error('Error getting organization', error)
       return { organization: null, error: 'Failed to get organization' }
     }
   },
@@ -125,13 +126,13 @@ export const organizationService = {
         .limit(1)
 
       if (error) {
-        console.error('Error checking subdomain:', error)
+        logger.error('Error checking subdomain', error)
         return false
       }
 
       return data.length === 0
     } catch (error) {
-      console.error('Error checking subdomain availability:', error)
+      logger.error('Error checking subdomain availability', error)
       return false
     }
   },

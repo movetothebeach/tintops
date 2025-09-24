@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Loader2 } from 'lucide-react'
 import { useAuth } from '@/core/contexts/AuthContext'
 import { supabase } from '@/core/lib/supabase'
+import { logger } from '@/core/lib/logger'
 
 const onboardingSchema = z.object({
   fullName: z.string().min(2, 'Full name must be at least 2 characters'),
@@ -77,7 +78,14 @@ export default function OnboardingPage() {
         })
 
         if (response.ok) {
-          const { organization } = await response.json()
+          let organization
+          try {
+            const result = await response.json()
+            organization = result.organization
+          } catch (jsonError) {
+            logger.error('Failed to parse organization response', jsonError)
+            throw new Error('Invalid response from server')
+          }
           if (organization) {
             willRedirect = true
             setRedirecting(true)
@@ -90,7 +98,7 @@ export default function OnboardingPage() {
       // All checks passed, page is ready
       setPageReady(true)
     } catch (err) {
-      console.error('Error initializing page:', err)
+      logger.error('Error initializing page', err)
       setError('Failed to load page. Please try again.')
     } finally {
       // Only stop loading if we're not redirecting
@@ -123,14 +131,20 @@ export default function OnboardingPage() {
         body: JSON.stringify({ organizationName: organizationName.trim() }),
       })
 
-      const data = await response.json()
+      let data
+      try {
+        data = await response.json()
+      } catch (jsonError) {
+        logger.error('Failed to parse subdomain response', jsonError)
+        return
+      }
 
       if (response.ok && data.subdomain) {
         form.setValue('subdomain', data.subdomain)
         setSubdomainGenerated(true)
       }
     } catch (err) {
-      console.error('Error generating subdomain:', err)
+      logger.error('Error generating subdomain', err)
     } finally {
       setIsGeneratingSubdomain(false)
     }
@@ -186,7 +200,14 @@ export default function OnboardingPage() {
         }),
       })
 
-      const data = await response.json()
+      let data
+      try {
+        data = await response.json()
+      } catch (jsonError) {
+        logger.error('Failed to parse organization creation response', jsonError)
+        setError('Failed to create organization - invalid server response')
+        return
+      }
 
       if (!response.ok) {
         setError(data.error || 'Failed to create organization')

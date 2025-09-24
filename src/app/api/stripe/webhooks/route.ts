@@ -67,7 +67,6 @@ export async function POST(request: NextRequest) {
               stripe_subscription_id: subscription.id,
               subscription_status: subscription.status,
               subscription_plan: subscription.items.data[0].price.recurring?.interval || 'monthly',
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
               trial_ends_at: subscription.trial_end
                 ? new Date(subscription.trial_end * 1000).toISOString()
@@ -150,7 +149,6 @@ export async function POST(request: NextRequest) {
         const invoice = event.data.object as Stripe.Invoice
 
         // Mark organization as active after successful payment
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         if ((invoice as any).subscription) {
           const subscriptionId = (invoice as any).subscription
 

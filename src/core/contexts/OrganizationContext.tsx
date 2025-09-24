@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { useAuth } from './AuthContext'
 import { supabase } from '@/core/lib/supabase'
+import { logger } from '@/core/lib/logger'
 import { Database } from '@/core/types/database'
 
 type Organization = Database['public']['Tables']['organizations']['Row']
@@ -42,13 +43,20 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
       })
 
       if (response.ok) {
-        const { organization: org } = await response.json()
+        let org
+        try {
+          const result = await response.json()
+          org = result.organization
+        } catch (jsonError) {
+          logger.error('Failed to parse organization response', jsonError)
+          throw new Error('Invalid response from server')
+        }
         setOrganization(org)
       } else {
         setOrganization(null)
       }
     } catch (error) {
-      console.error('Error fetching organization:', error)
+      logger.error('Error fetching organization', error)
       setOrganization(null)
     } finally {
       setLoading(false)

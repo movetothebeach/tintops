@@ -2,18 +2,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { stripe, STRIPE_CONFIG } from '@/core/lib/stripe'
 import { supabase } from '@/core/lib/supabase'
 import { organizationService } from '@/core/lib/organizations'
+import { getActiveProducts, getTrialDaysForPrice } from '@/core/lib/stripe-products'
 import { logger } from '@/core/lib/logger'
 
 export async function POST(request: NextRequest) {
-  let plan = 'unknown'
 
   try {
     const body = await request.json()
-    plan = body.plan
+    const { priceId } = body
 
-    // Validate plan
-    if (!plan || !['monthly', 'yearly'].includes(plan)) {
-      return NextResponse.json({ error: 'Invalid plan specified' }, { status: 400 })
+    // Validate that priceId is provided
+    if (!priceId || typeof priceId !== 'string') {
+      return NextResponse.json({ error: 'Price ID is required' }, { status: 400 })
     }
 
     // Get authenticated user
@@ -110,12 +110,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Get price ID based on plan
-    const priceId = plan === 'yearly' ? STRIPE_CONFIG.PRICE_YEARLY : STRIPE_CONFIG.PRICE_MONTHLY
-
-    if (!priceId) {
-      return NextResponse.json({ error: 'Price not configured for plan' }, { status: 500 })
-    }
+    // Get trial period from Stripe product data
+    const products = await getActiveProducts()
+    const trialDays = getTrialDaysForPrice(products, priceId)
 
     // Create checkout session
     const session = await stripe.checkout.sessions.create({
@@ -129,7 +126,7 @@ export async function POST(request: NextRequest) {
       ],
       mode: 'subscription',
       subscription_data: {
-        trial_period_days: STRIPE_CONFIG.TRIAL_PERIOD_DAYS,
+        trial_period_days: trialDays,
         metadata: {
           organizationId: organization.id,
         },
@@ -149,8 +146,7 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     logger.error('Error creating checkout session', error, {
-      plan,
-      userId: 'user_id_from_request'
+      priceId: 'price_id_from_request'
     })
     return NextResponse.json({ error: 'Failed to create checkout session' }, { status: 500 })
   }

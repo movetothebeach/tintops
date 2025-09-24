@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { organizationService } from '@/core/lib/organizations'
 import { generateSlug, isValidSlug, isReservedSubdomain } from '@/core/utils/slug'
 import { supabase } from '@/core/lib/supabase'
+import { logger } from '@/core/lib/logger'
 
 export async function POST(request: NextRequest) {
   try {
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
     }, { status: 409 })
 
   } catch (error) {
-    console.error('Error in generate subdomain API:', error)
+    logger.error('Error in generate subdomain API', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -90,7 +91,7 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Error in subdomain check API:', error)
+    logger.error('Error in subdomain check API', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

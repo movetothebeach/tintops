@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/core/contexts/AuthContext'
 import { supabase } from '@/core/lib/supabase'
+import { logger } from '@/core/lib/logger'
 import { Loader2 } from 'lucide-react'
 
 export default function Home() {
@@ -36,7 +37,15 @@ export default function Home() {
           })
 
           if (response.ok) {
-            const { organization } = await response.json()
+            let organization
+            try {
+              const result = await response.json()
+              organization = result.organization
+            } catch (jsonError) {
+              logger.error('Failed to parse organization response', jsonError)
+              // Don't throw here since this is just checking if user has org
+              return
+            }
             if (organization) {
               // Has organization - redirect to dashboard
               router.push('/dashboard')
@@ -52,7 +61,7 @@ export default function Home() {
         // Fallback - show marketing page
         setChecking(false)
       } catch (error) {
-        console.error('Error checking user state:', error)
+        logger.error('Error checking user state', error)
         setChecking(false)
       }
     }

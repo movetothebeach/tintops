@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge'
 import { Loader2, CreditCard, CheckCircle, Clock, AlertTriangle } from 'lucide-react'
 import { useAuth } from '@/core/contexts/AuthContext'
 import { supabase } from '@/core/lib/supabase'
+import { logger } from '@/core/lib/logger'
+import { StripeProduct, formatPrice, getPricingDisplayInfo } from '@/core/lib/stripe-products'
 
 interface Organization {
   id: string
@@ -21,13 +23,14 @@ interface Organization {
 
 export default function BillingPage() {
   const [organization, setOrganization] = useState<Organization | null>(null)
+  const [products, setProducts] = useState<StripeProduct[]>([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
-    async function fetchOrganization() {
+    async function fetchData() {
       if (authLoading) return
 
       if (!user) {
@@ -42,14 +45,25 @@ export default function BillingPage() {
           return
         }
 
-        const response = await fetch('/api/organizations', {
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-        })
+        // Fetch both organization and products in parallel
+        const [orgResponse, productsResponse] = await Promise.all([
+          fetch('/api/organizations', {
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+          }),
+          fetch('/api/stripe/products')
+        ])
 
-        if (response.ok) {
-          const { organization } = await response.json()
+        if (orgResponse.ok) {
+          let organization
+          try {
+            const result = await orgResponse.json()
+            organization = result.organization
+          } catch (jsonError) {
+            logger.error('Failed to parse organization response', jsonError)
+            throw new Error('Invalid response from server')
+          }
           if (!organization) {
             router.push('/onboarding')
             return
@@ -58,17 +72,27 @@ export default function BillingPage() {
         } else {
           throw new Error('Failed to fetch organization')
         }
+
+        if (productsResponse.ok) {
+          try {
+            const result = await productsResponse.json()
+            setProducts(result.products || [])
+          } catch (jsonError) {
+            logger.error('Failed to parse products response', jsonError)
+            // Continue without products - will show loading state
+          }
+        }
       } catch (error) {
-        console.error('Error fetching organization:', error)
+        logger.error('Error fetching data', error)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchOrganization()
+    fetchData()
   }, [user, authLoading, router])
 
-  const handleSubscribe = async (plan: 'monthly' | 'yearly') => {
+  const handleSubscribe = async (priceId: string) => {
     if (!user) return
 
     try {
@@ -82,10 +106,17 @@ export default function BillingPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({ priceId }),
       })
 
-      const data = await response.json()
+      let data
+      try {
+        data = await response.json()
+      } catch (jsonError) {
+        logger.error('Failed to parse checkout response', jsonError)
+        alert('Failed to start checkout - invalid server response')
+        return
+      }
 
       if (response.ok) {
         // Redirect to Stripe checkout
@@ -94,7 +125,7 @@ export default function BillingPage() {
         throw new Error(data.error || 'Failed to create checkout session')
       }
     } catch (error) {
-      console.error('Error creating checkout session:', error)
+      logger.error('Error creating checkout session', error)
       alert('Failed to start checkout. Please try again.')
     } finally {
       setActionLoading(false)
@@ -116,7 +147,14 @@ export default function BillingPage() {
         },
       })
 
-      const data = await response.json()
+      let data
+      try {
+        data = await response.json()
+      } catch (jsonError) {
+        logger.error('Failed to parse billing portal response', jsonError)
+        alert('Failed to open billing portal - invalid server response')
+        return
+      }
 
       if (response.ok) {
         // Redirect to Stripe billing portal
@@ -125,7 +163,7 @@ export default function BillingPage() {
         throw new Error(data.error || 'Failed to create billing portal session')
       }
     } catch (error) {
-      console.error('Error creating billing portal session:', error)
+      logger.error('Error creating billing portal session', error)
       alert('Failed to open billing portal. Please try again.')
     } finally {
       setActionLoading(false)
@@ -245,50 +283,76 @@ export default function BillingPage() {
               <CardHeader>
                 <CardTitle>Choose Your Plan</CardTitle>
                 <CardDescription>
-                  Start your free 14-day trial, then choose the plan that works best for you.
+                  {products.length > 0 && products[0].prices.some(p => p.recurring?.trial_period_days)
+                    ? `Start your free ${products[0].prices.find(p => p.recurring?.trial_period_days)?.recurring?.trial_period_days}-day trial, then choose the plan that works best for you.`
+                    : 'Choose the plan that works best for you.'
+                  }
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <div className="border rounded-lg p-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <h3 className="font-medium">Monthly Plan</h3>
-                      <Badge variant="outline">$29/month</Badge>
-                    </div>
-                    <p className="text-sm text-gray-600 mb-3">Perfect for getting started</p>
-                    <Button
-                      onClick={() => handleSubscribe('monthly')}
-                      disabled={actionLoading}
-                      className="w-full"
-                    >
-                      {actionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                      Start Monthly Plan
-                    </Button>
+                {products.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                    <p className="text-sm text-gray-500">Loading plans...</p>
                   </div>
+                ) : (
+                  <div className="space-y-3">
+                    {products.map(product =>
+                      product.prices
+                        .sort((a, b) => (a.unit_amount || 0) - (b.unit_amount || 0))
+                        .map((price, index) => {
+                          const displayInfo = getPricingDisplayInfo(price)
+                          const isYearly = price.recurring?.interval === 'year'
 
-                  <div className="border rounded-lg p-4 bg-blue-50 border-blue-200">
-                    <div className="flex justify-between items-center mb-2">
-                      <h3 className="font-medium">Yearly Plan</h3>
-                      <div className="text-right">
-                        <Badge className="bg-blue-500">Save 17%</Badge>
-                        <p className="text-sm font-medium mt-1">$290/year</p>
-                      </div>
-                    </div>
-                    <p className="text-sm text-gray-600 mb-3">2 months free compared to monthly</p>
-                    <Button
-                      onClick={() => handleSubscribe('yearly')}
-                      disabled={actionLoading}
-                      className="w-full"
-                    >
-                      {actionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                      Start Yearly Plan
-                    </Button>
+                          return (
+                            <div
+                              key={price.id}
+                              className={`border rounded-lg p-4 ${isYearly ? 'bg-blue-50 border-blue-200' : ''}`}
+                            >
+                              <div className="flex justify-between items-center mb-2">
+                                <h3 className="font-medium">
+                                  {product.name} - {price.recurring?.interval === 'month' ? 'Monthly' : 'Yearly'}
+                                </h3>
+                                <div className="text-right">
+                                  {isYearly && (
+                                    <Badge className="bg-blue-500 mb-1">
+                                      Best Value
+                                    </Badge>
+                                  )}
+                                  <Badge variant={isYearly ? 'default' : 'outline'}>
+                                    {displayInfo.amount}{displayInfo.interval}
+                                  </Badge>
+                                </div>
+                              </div>
+
+                              {product.description && (
+                                <p className="text-sm text-gray-600 mb-3">{product.description}</p>
+                              )}
+
+                              <Button
+                                onClick={() => handleSubscribe(price.id)}
+                                disabled={actionLoading}
+                                className="w-full"
+                                variant={isYearly ? 'default' : 'outline'}
+                              >
+                                {actionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                                Start {price.recurring?.interval === 'month' ? 'Monthly' : 'Yearly'} Plan
+                              </Button>
+                            </div>
+                          )
+                        })
+                    )}
                   </div>
-                </div>
+                )}
 
-                <div className="text-xs text-gray-500 text-center">
-                  14-day free trial • No commitment • Cancel anytime
-                </div>
+                {products.length > 0 && (
+                  <div className="text-xs text-gray-500 text-center">
+                    {products[0].prices.some(p => p.recurring?.trial_period_days) &&
+                      `${products[0].prices.find(p => p.recurring?.trial_period_days)?.recurring?.trial_period_days}-day free trial • `
+                    }
+                    No commitment • Cancel anytime
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
