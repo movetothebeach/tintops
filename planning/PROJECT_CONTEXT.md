@@ -4,7 +4,7 @@ A SaaS platform for window tinting shops that automates their marketing and oper
 Main competitor: TintWiz (look them up if needed).
 Our advantage: Automated SMS marketing and call tracking.
 
-UI/UX Overview
+UI/UX Overview USE SHADCN UI
 What This Is
 A modern CRM for automotive tint shops that organizes by intent (what you're trying to do) rather than by data type (contacts, projects, etc.). Navigation matches your actual workflow, not database structure.
 Design System
