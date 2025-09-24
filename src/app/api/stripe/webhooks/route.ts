@@ -34,7 +34,12 @@ export async function POST(request: NextRequest) {
 
     // Enhanced logging for subscription events to debug field values
     if (event.type.startsWith('customer.subscription.')) {
-      const subscription = event.data.object as Stripe.Subscription
+      const subscription = event.data.object as Stripe.Subscription & {
+        current_period_start?: number
+        current_period_end?: number
+        trial_start?: number | null
+        trial_end?: number | null
+      }
       logger.webhook(event.type, 'subscription_data', {
         eventId: event.id,
         subscriptionId: subscription.id,

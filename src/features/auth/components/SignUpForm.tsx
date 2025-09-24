@@ -44,6 +44,24 @@ export function SignUpForm() {
       setIsLoading(true)
       setError(null)
 
+      // First, check if email already exists
+      const checkResponse = await fetch('/api/auth/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: values.email })
+      })
+
+      if (!checkResponse.ok) {
+        setError('Unable to verify email. Please try again.')
+        return
+      }
+
+      const checkData = await checkResponse.json()
+      if (checkData.emailExists) {
+        setError('An account with this email already exists. Please sign in instead.')
+        return
+      }
+
       // Sign up the user with their full name in metadata
       const { error } = await signUp(values.email, values.password, {
         full_name: values.fullName
@@ -54,7 +72,7 @@ export function SignUpForm() {
         return
       }
 
-      // Redirect to email confirmation page
+      // Only redirect to email confirmation page on successful signup
       router.push('/auth/confirm')
     } catch {
       setError('An unexpected error occurred')
