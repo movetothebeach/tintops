@@ -1,21 +1,34 @@
 'use client'
 
 import { useAuth } from '@/core/contexts/AuthContext'
+import { useOrganization } from '@/core/contexts/OrganizationContext'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default function DashboardPage() {
   const { user, signOut } = useAuth()
+  const { organization, loading } = useOrganization()
 
   const handleSignOut = async () => {
     await signOut()
     window.location.href = '/'
   }
 
+  if (loading) {
+    return <div className="flex h-screen items-center justify-center">Loading...</div>
+  }
+
   return (
     <div className="container mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <div>
+          <h1 className="text-3xl font-bold">
+            {organization?.name || 'Dashboard'}
+          </h1>
+          <p className="text-muted-foreground">
+            {organization?.subdomain}.tintops.app
+          </p>
+        </div>
         <Button onClick={handleSignOut} variant="outline">
           Sign Out
         </Button>
@@ -30,9 +43,11 @@ export default function DashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Email: {user?.email}
-            </p>
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <p>Email: {user?.email}</p>
+              <p>Organization: {organization?.name}</p>
+              <p>Status: {organization?.subscription_status}</p>
+            </div>
           </CardContent>
         </Card>
 
