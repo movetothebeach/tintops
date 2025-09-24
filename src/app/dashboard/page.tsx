@@ -1,21 +1,49 @@
 'use client'
 
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/core/contexts/AuthContext'
 import { useOrganization } from '@/core/contexts/OrganizationContext'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default function DashboardPage() {
-  const { user, signOut } = useAuth()
-  const { organization, loading } = useOrganization()
+  const { user, signOut, loading: authLoading } = useAuth()
+  const { organization, loading: orgLoading } = useOrganization()
+  const router = useRouter()
+
+  useEffect(() => {
+    // Redirect if not authenticated
+    if (!authLoading && !user) {
+      router.push('/auth/login')
+      return
+    }
+
+    // Redirect to onboarding if authenticated but no organization
+    if (!authLoading && !orgLoading && user && !organization) {
+      router.push('/onboarding')
+      return
+    }
+  }, [user, organization, authLoading, orgLoading, router])
 
   const handleSignOut = async () => {
     await signOut()
     window.location.href = '/'
   }
 
-  if (loading) {
+  // Show loading while checking authentication
+  if (authLoading || orgLoading) {
     return <div className="flex h-screen items-center justify-center">Loading...</div>
+  }
+
+  // Don't render content if not authenticated
+  if (!user) {
+    return null // Will redirect
+  }
+
+  // Don't render content if no organization
+  if (!organization) {
+    return null // Will redirect
   }
 
   return (
