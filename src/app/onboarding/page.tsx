@@ -60,7 +60,7 @@ export default function OnboardingPage() {
     } catch (err) {
       console.error('Error checking organization:', err)
     }
-  }, [])
+  }, [router])
 
   useEffect(() => {
     // Redirect if not authenticated
@@ -108,7 +108,7 @@ export default function OnboardingPage() {
 
       // Success! Redirect to dashboard
       router.push('/dashboard')
-    } catch (error) {
+    } catch {
       setError('An unexpected error occurred')
     } finally {
       setIsLoading(false)
