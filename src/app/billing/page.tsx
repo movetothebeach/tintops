@@ -9,7 +9,7 @@ import { Loader2, CreditCard, CheckCircle, Clock, AlertTriangle } from 'lucide-r
 import { useAuth } from '@/core/contexts/AuthContext'
 import { supabase } from '@/core/lib/supabase'
 import { logger } from '@/core/lib/logger'
-import { StripeProduct, getPricingDisplayInfo } from '@/core/lib/stripe-products'
+import { StripeProduct, getPricingDisplayInfo } from '@/core/lib/stripe-utils'
 
 interface Organization {
   id: string
