@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { Loader2 } from 'lucide-react'
 import { useAuth } from '@/core/contexts/AuthContext'
 import { supabase } from '@/core/lib/supabase'
 
@@ -142,7 +143,15 @@ export default function OnboardingPage() {
               Create your organization to get started with TintOps
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="relative">
+            {isLoading && (
+              <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10">
+                <div className="flex items-center space-x-2">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                  <span className="text-sm font-medium">Creating organization...</span>
+                </div>
+              </div>
+            )}
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
@@ -207,6 +216,7 @@ export default function OnboardingPage() {
                   </div>
                 )}
                 <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {isLoading ? 'Creating organization...' : 'Create Organization'}
                 </Button>
               </form>
