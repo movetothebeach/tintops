@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Loader2, CreditCard, CheckCircle, Clock, AlertTriangle } from 'lucide-react'
 import { useAuth } from '@/core/contexts/AuthContext'
@@ -25,7 +25,7 @@ export default function BillingPage() {
   const [organization, setOrganization] = useState<Organization | null>(null)
   const [products, setProducts] = useState<StripeProduct[]>([])
   const [loading, setLoading] = useState(true)
-  const [actionLoading, setActionLoading] = useState(false)
+  const [loadingPriceId, setLoadingPriceId] = useState<string | null>(null)
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
 
@@ -93,10 +93,10 @@ export default function BillingPage() {
   }, [user, authLoading, router])
 
   const handleSubscribe = async (priceId: string) => {
-    if (!user) return
+    if (!user || loadingPriceId) return
 
     try {
-      setActionLoading(true)
+      setLoadingPriceId(priceId)
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
 
@@ -128,7 +128,7 @@ export default function BillingPage() {
       logger.error('Error creating checkout session', error)
       alert('Failed to start checkout. Please try again.')
     } finally {
-      setActionLoading(false)
+      setLoadingPriceId(null)
     }
   }
 
@@ -136,7 +136,7 @@ export default function BillingPage() {
     if (!user) return
 
     try {
-      setActionLoading(true)
+      setLoadingPriceId('manage')
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
 
@@ -166,7 +166,7 @@ export default function BillingPage() {
       logger.error('Error creating billing portal session', error)
       alert('Failed to open billing portal. Please try again.')
     } finally {
-      setActionLoading(false)
+      setLoadingPriceId(null)
     }
   }
 
@@ -266,11 +266,11 @@ export default function BillingPage() {
               {organization.stripe_customer_id && (
                 <Button
                   onClick={handleManageBilling}
-                  disabled={actionLoading}
+                  disabled={loadingPriceId === 'manage'}
                   variant="outline"
                   className="w-full"
                 >
-                  {actionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  {loadingPriceId === 'manage' ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                   Manage Billing
                 </Button>
               )}
@@ -279,82 +279,127 @@ export default function BillingPage() {
 
           {/* Subscription Plans */}
           {(!organization.subscription_status || organization.subscription_status === 'canceled') && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Choose Your Plan</CardTitle>
-                <CardDescription>
+            <div className="col-span-full">
+              <div className="text-center mb-8">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  Choose Your TintOps Plan
+                </h2>
+                <p className="text-gray-600">
                   {products.length > 0 && products[0].prices.some(p => p.recurring?.trial_period_days)
-                    ? `Start your free ${products[0].prices.find(p => p.recurring?.trial_period_days)?.recurring?.trial_period_days}-day trial, then choose the plan that works best for you.`
-                    : 'Choose the plan that works best for you.'
+                    ? `Start your free ${products[0].prices.find(p => p.recurring?.trial_period_days)?.recurring?.trial_period_days}-day trial today. No credit card required.`
+                    : 'Choose the plan that works best for your tint shop.'
                   }
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {products.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-                    <p className="text-sm text-gray-500">Loading plans...</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {products.map(product =>
-                      product.prices
-                        .sort((a, b) => (a.unit_amount || 0) - (b.unit_amount || 0))
-                        .map((price) => {
-                          const displayInfo = getPricingDisplayInfo(price)
-                          const isYearly = price.recurring?.interval === 'year'
+                </p>
+              </div>
 
-                          return (
-                            <div
-                              key={price.id}
-                              className={`border rounded-lg p-4 ${isYearly ? 'bg-blue-50 border-blue-200' : ''}`}
-                            >
-                              <div className="flex justify-between items-center mb-2">
-                                <h3 className="font-medium">
-                                  {product.name} - {price.recurring?.interval === 'month' ? 'Monthly' : 'Yearly'}
-                                </h3>
-                                <div className="text-right">
-                                  {isYearly && (
-                                    <Badge className="bg-blue-500 mb-1">
-                                      Best Value
-                                    </Badge>
-                                  )}
-                                  <Badge variant={isYearly ? 'default' : 'outline'}>
-                                    {displayInfo.amount}{displayInfo.interval}
-                                  </Badge>
+              {products.length === 0 ? (
+                <div className="text-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-500" />
+                  <p className="text-gray-500">Loading pricing plans...</p>
+                </div>
+              ) : (
+                <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                  {products.map(product =>
+                    product.prices
+                      .sort((a, b) => (a.unit_amount || 0) - (b.unit_amount || 0))
+                      .map((price) => {
+                        const displayInfo = getPricingDisplayInfo(price)
+                        const isYearly = price.recurring?.interval === 'year'
+                        const monthlyPrice = isYearly ? (price.unit_amount || 0) / 12 / 100 : (price.unit_amount || 0) / 100
+
+                        return (
+                          <Card
+                            key={price.id}
+                            className={`relative ${isYearly ? 'ring-2 ring-blue-500 shadow-lg' : 'hover:shadow-md'} transition-all duration-200`}
+                          >
+                            {isYearly && (
+                              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                                <Badge className="bg-blue-500 text-white px-3 py-1">
+                                  Most Popular
+                                </Badge>
+                              </div>
+                            )}
+
+                            <CardHeader className="text-center pb-4">
+                              <CardTitle className="text-lg">
+                                {isYearly ? 'Annual Plan' : 'Monthly Plan'}
+                              </CardTitle>
+                              <div className="mt-4">
+                                <div className="flex items-center justify-center">
+                                  <span className="text-4xl font-bold text-gray-900">
+                                    ${Math.round(monthlyPrice)}
+                                  </span>
+                                  <span className="text-gray-500 ml-2">/month</span>
+                                </div>
+                                {isYearly && (
+                                  <div className="mt-1">
+                                    <span className="text-sm text-green-600 font-medium">
+                                      Save ${Math.round((monthlyPrice * 12) - ((price.unit_amount || 0) / 100))}/year
+                                    </span>
+                                  </div>
+                                )}
+                                <div className="text-sm text-gray-500 mt-2">
+                                  {isYearly ? `Billed annually (${displayInfo.amount})` : 'Billed monthly'}
                                 </div>
                               </div>
+                            </CardHeader>
 
-                              {product.description && (
-                                <p className="text-sm text-gray-600 mb-3">{product.description}</p>
-                              )}
-
+                            <CardContent className="pt-0">
                               <Button
                                 onClick={() => handleSubscribe(price.id)}
-                                disabled={actionLoading}
-                                className="w-full"
+                                disabled={loadingPriceId === price.id}
+                                className="w-full mb-6"
+                                size="lg"
                                 variant={isYearly ? 'default' : 'outline'}
                               >
-                                {actionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                                Start {price.recurring?.interval === 'month' ? 'Monthly' : 'Yearly'} Plan
+                                {loadingPriceId === price.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                ) : null}
+                                Start Free Trial
                               </Button>
-                            </div>
-                          )
-                        })
-                    )}
-                  </div>
-                )}
 
-                {products.length > 0 && (
-                  <div className="text-xs text-gray-500 text-center">
-                    {products[0].prices.some(p => p.recurring?.trial_period_days) &&
-                      `${products[0].prices.find(p => p.recurring?.trial_period_days)?.recurring?.trial_period_days}-day free trial • `
-                    }
-                    No commitment • Cancel anytime
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                              <div className="space-y-3 text-sm">
+                                {displayInfo.trialDays && (
+                                  <div className="flex items-center">
+                                    <CheckCircle className="h-4 w-4 text-green-500 mr-3 flex-shrink-0" />
+                                    <span>{displayInfo.trialDays}-day free trial</span>
+                                  </div>
+                                )}
+                                <div className="flex items-center">
+                                  <CheckCircle className="h-4 w-4 text-green-500 mr-3 flex-shrink-0" />
+                                  <span>Unlimited customers & jobs</span>
+                                </div>
+                                <div className="flex items-center">
+                                  <CheckCircle className="h-4 w-4 text-green-500 mr-3 flex-shrink-0" />
+                                  <span>SMS automation & follow-ups</span>
+                                </div>
+                                <div className="flex items-center">
+                                  <CheckCircle className="h-4 w-4 text-green-500 mr-3 flex-shrink-0" />
+                                  <span>Team collaboration tools</span>
+                                </div>
+                                <div className="flex items-center">
+                                  <CheckCircle className="h-4 w-4 text-green-500 mr-3 flex-shrink-0" />
+                                  <span>Analytics & reporting</span>
+                                </div>
+                                <div className="flex items-center">
+                                  <CheckCircle className="h-4 w-4 text-green-500 mr-3 flex-shrink-0" />
+                                  <span>Priority email support</span>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )
+                      })
+                  )}
+                </div>
+              )}
+
+              <div className="text-center mt-8">
+                <p className="text-sm text-gray-500">
+                  🔒 Secure payment processing by Stripe • Cancel anytime • No setup fees
+                </p>
+              </div>
+            </div>
           )}
         </div>
 
