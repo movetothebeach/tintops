@@ -40,7 +40,7 @@ export function LoginForm() {
       const { error } = await signIn(values.email, values.password)
 
       if (error) {
-        setError(error.message)
+        setError(error instanceof Error ? error.message : 'Sign in failed')
         return
       }
 

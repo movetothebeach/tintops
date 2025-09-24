@@ -52,7 +52,7 @@ export function SignUpForm() {
       const { error } = await signUp(values.email, values.password)
 
       if (error) {
-        setError(error.message)
+        setError(error instanceof Error ? error.message : 'Sign up failed')
         return
       }
 
