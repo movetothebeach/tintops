@@ -19,34 +19,38 @@ export const organizationService = {
       const adminClient = createAdminClient()
 
       // Start a transaction by creating organization first
+      const orgInsert: OrganizationInsert = {
+        name: data.name,
+        subdomain: data.subdomain,
+        is_active: true,
+        onboarding_completed: false,
+        subscription_status: 'trialing',
+      }
+
       const { data: organization, error: orgError } = await adminClient
         .from('organizations')
-        .insert({
-          name: data.name,
-          subdomain: data.subdomain,
-          is_active: true,
-          onboarding_completed: false,
-          subscription_status: 'trialing',
-        } satisfies OrganizationInsert)
+        .insert(orgInsert)
         .select()
         .single()
 
-      if (orgError) {
+      if (orgError || !organization) {
         console.error('Error creating organization:', orgError)
         return { organization: null, error: 'Failed to create organization' }
       }
 
       // Create user record linked to organization
+      const userInsert: UserInsert = {
+        id: data.userId,
+        organization_id: organization.id,
+        email: data.ownerEmail,
+        full_name: data.ownerName,
+        role: 'owner',
+        is_active: true,
+      }
+
       const { error: userError } = await adminClient
         .from('users')
-        .insert({
-          id: data.userId,
-          organization_id: organization.id,
-          email: data.ownerEmail,
-          full_name: data.ownerName,
-          role: 'owner',
-          is_active: true,
-        } satisfies UserInsert)
+        .insert(userInsert)
 
       if (userError) {
         console.error('Error creating user record:', userError)

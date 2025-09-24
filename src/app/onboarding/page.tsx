@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -39,19 +39,7 @@ export default function OnboardingPage() {
     },
   })
 
-  useEffect(() => {
-    // Redirect if not authenticated
-    if (!authLoading && !user) {
-      router.push('/auth/login')
-    }
-
-    // Check if user already has an organization
-    if (user) {
-      checkExistingOrganization()
-    }
-  }, [user, authLoading, router])
-
-  async function checkExistingOrganization() {
+  const checkExistingOrganization = useCallback(async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
@@ -69,10 +57,23 @@ export default function OnboardingPage() {
           return
         }
       }
-    } catch (error) {
-      console.error('Error checking organization:', error)
+    } catch (err) {
+      console.error('Error checking organization:', err)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    // Redirect if not authenticated
+    if (!authLoading && !user) {
+      router.push('/auth/login')
+      return
+    }
+
+    // Check if user already has an organization
+    if (user) {
+      checkExistingOrganization()
+    }
+  }, [user, authLoading, router, checkExistingOrganization])
 
   async function onSubmit(values: OnboardingForm) {
     try {

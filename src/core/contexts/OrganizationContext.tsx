@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { useAuth } from './AuthContext'
 import { supabase } from '@/core/lib/supabase'
 import { Database } from '@/core/types/database'
@@ -20,7 +20,7 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
   const [loading, setLoading] = useState(true)
   const { user } = useAuth()
 
-  const fetchOrganization = async () => {
+  const fetchOrganization = useCallback(async () => {
     if (!user) {
       setOrganization(null)
       setLoading(false)
@@ -53,11 +53,11 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
     } finally {
       setLoading(false)
     }
-  }
+  }, [user])
 
   useEffect(() => {
     fetchOrganization()
-  }, [user])
+  }, [user, fetchOrganization])
 
   const value = {
     organization,
