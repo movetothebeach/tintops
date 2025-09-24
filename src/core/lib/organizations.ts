@@ -27,9 +27,8 @@ export const organizationService = {
         subscription_status: 'trialing',
       } as OrganizationInsert
 
-      const { data: organization, error: orgError } = await (adminClient
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .from('organizations') as any)
+      const { data: organization, error: orgError } = await adminClient
+        .from('organizations')
         .insert(orgInsert)
         .select()
         .single()
@@ -49,16 +48,14 @@ export const organizationService = {
         is_active: true,
       }
 
-      const { error: userError } = await (adminClient
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .from('users') as any)
+      const { error: userError } = await adminClient
+        .from('users')
         .insert(userInsert)
 
       if (userError) {
         console.error('Error creating user record:', userError)
         // Clean up organization if user creation failed
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (adminClient.from('organizations') as any).delete().eq('id', organization.id)
+        await adminClient.from('organizations').delete().eq('id', organization.id)
         return { organization: null, error: 'Failed to create user record' }
       }
 
@@ -73,9 +70,8 @@ export const organizationService = {
     try {
       const adminClient = createAdminClient()
 
-      const { data: user, error: userError } = await (adminClient
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .from('users') as any)
+      const { data: user, error: userError } = await adminClient
+        .from('users')
         .select('organization_id, organizations(*)')
         .eq('id', userId)
         .single()
@@ -95,9 +91,8 @@ export const organizationService = {
     try {
       const adminClient = createAdminClient()
 
-      const { data, error } = await (adminClient
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .from('organizations') as any)
+      const { data, error } = await adminClient
+        .from('organizations')
         .select('subdomain')
         .eq('subdomain', subdomain)
         .limit(1)

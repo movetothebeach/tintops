@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { Database } from '@/core/types/database'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -11,7 +11,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
 
 // Server-side admin client (only create when actually needed)
-export function createAdminClient() {
+export function createAdminClient(): SupabaseClient<Database> {
   if (typeof window !== 'undefined') {
     throw new Error('Admin client should only be used server-side')
   }
