@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { organizationService } from '@/core/lib/organizations'
-import { generateSlug, isValidSlug } from '@/core/utils/slug'
+import { generateSlug, isValidSlug, isReservedSubdomain } from '@/core/utils/slug'
 import { supabase } from '@/core/lib/supabase'
 
 export async function POST(request: NextRequest) {
@@ -37,6 +37,14 @@ export async function POST(request: NextRequest) {
     const maxAttempts = 100 // Prevent infinite loops
 
     while (attempt <= maxAttempts) {
+      // Check if subdomain is reserved
+      if (isReservedSubdomain(subdomain)) {
+        // Try with suffix immediately
+        attempt++
+        subdomain = `${baseSlug}-${attempt}`
+        continue
+      }
+
       const isAvailable = await organizationService.checkSubdomainAvailability(subdomain)
 
       if (isAvailable) {
@@ -76,8 +84,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       subdomain,
-      available: isAvailable,
-      valid: isValidSlug(subdomain)
+      available: isAvailable && !isReservedSubdomain(subdomain),
+      valid: isValidSlug(subdomain),
+      reserved: isReservedSubdomain(subdomain)
     })
 
   } catch (error) {

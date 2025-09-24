@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { organizationService } from '@/core/lib/organizations'
+import { isReservedSubdomain, isValidSlug } from '@/core/utils/slug'
 import { supabase } from '@/core/lib/supabase'
 
 export async function POST(request: NextRequest) {
@@ -24,6 +25,16 @@ export async function POST(request: NextRequest) {
     // Validate input
     if (!name || !subdomain || !ownerName) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    // Validate subdomain format
+    if (!isValidSlug(subdomain)) {
+      return NextResponse.json({ error: 'Invalid subdomain format' }, { status: 400 })
+    }
+
+    // Check if subdomain is reserved
+    if (isReservedSubdomain(subdomain)) {
+      return NextResponse.json({ error: 'Subdomain is reserved and cannot be used' }, { status: 400 })
     }
 
     // Check subdomain availability

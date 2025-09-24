@@ -1,4 +1,36 @@
 /**
+ * Reserved subdomains that cannot be used by organizations
+ * Comprehensive list covering infrastructure, business, and security needs
+ */
+const RESERVED_SUBDOMAINS = [
+  // Core infrastructure
+  'api', 'www', 'admin', 'dashboard', 'app', 'console',
+
+  // Technical/CDN
+  'cdn', 'static', 'assets', 'media', 'images', 'files', 'downloads',
+
+  // Communication
+  'mail', 'email', 'smtp', 'pop', 'imap', 'support', 'help', 'contact',
+
+  // Authentication & Security
+  'auth', 'login', 'signup', 'oauth', 'sso', 'security', 'abuse', 'report',
+
+  // Business/Legal
+  'blog', 'docs', 'documentation', 'status', 'about', 'legal', 'privacy',
+  'terms', 'billing', 'payments', 'invoice', 'sales', 'marketing',
+
+  // Development
+  'dev', 'development', 'staging', 'test', 'testing', 'demo', 'preview',
+
+  // Networking/Services
+  'ftp', 'ssh', 'vpn', 'proxy', 'gateway',
+
+  // Common business terms (prevent conflicts)
+  'tintops', 'tint-ops', 'shop', 'store', 'account', 'user', 'client',
+  'customer', 'service', 'portal', 'platform'
+]
+
+/**
  * Generates a URL-friendly slug from organization name
  * Follows the subdomain validation rules: lowercase letters, numbers, hyphens only
  * Must start and end with alphanumeric characters
@@ -43,7 +75,19 @@ export function generateSlug(input: string): string {
     slug = slug.substring(0, 30).replace(/-+$/, '')
   }
 
+  // If the generated slug is reserved, add suffix
+  if (isReservedSubdomain(slug)) {
+    slug = slug + '-shop'
+  }
+
   return slug
+}
+
+/**
+ * Checks if a subdomain is reserved
+ */
+export function isReservedSubdomain(subdomain: string): boolean {
+  return RESERVED_SUBDOMAINS.includes(subdomain.toLowerCase())
 }
 
 /**
@@ -60,6 +104,9 @@ export function isValidSlug(slug: string): boolean {
 
   // Must end with letter or number
   if (!/[a-z0-9]$/.test(slug)) return false
+
+  // Must not be reserved
+  if (isReservedSubdomain(slug)) return false
 
   return true
 }

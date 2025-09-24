@@ -1,5 +1,6 @@
 import { createAdminClient } from './supabase'
 import { Database } from '@/core/types/database'
+import { isReservedSubdomain } from '@/core/utils/slug'
 
 type Organization = Database['public']['Tables']['organizations']['Row']
 type OrganizationInsert = Database['public']['Tables']['organizations']['Insert']
@@ -89,6 +90,11 @@ export const organizationService = {
 
   async checkSubdomainAvailability(subdomain: string): Promise<boolean> {
     try {
+      // Check if subdomain is reserved first
+      if (isReservedSubdomain(subdomain)) {
+        return false
+      }
+
       const adminClient = createAdminClient()
 
       const { data, error } = await adminClient
