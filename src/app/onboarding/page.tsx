@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -28,6 +28,8 @@ type OnboardingForm = z.infer<typeof onboardingSchema>
 export default function OnboardingPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isGeneratingSubdomain, setIsGeneratingSubdomain] = useState(false)
+  const [subdomainGenerated, setSubdomainGenerated] = useState(false)
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
 
@@ -62,6 +64,59 @@ export default function OnboardingPage() {
       console.error('Error checking organization:', err)
     }
   }, [router])
+
+  // Debounced subdomain generation
+  const generateSubdomain = useCallback(async (organizationName: string) => {
+    if (!organizationName.trim() || organizationName.trim().length < 2) {
+      return
+    }
+
+    setIsGeneratingSubdomain(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      }
+
+      if (session) {
+        headers['Authorization'] = `Bearer ${session.access_token}`
+      }
+
+      const response = await fetch('/api/organizations/generate-subdomain', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ organizationName: organizationName.trim() }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.subdomain) {
+        form.setValue('subdomain', data.subdomain)
+        setSubdomainGenerated(true)
+      }
+    } catch (err) {
+      console.error('Error generating subdomain:', err)
+    } finally {
+      setIsGeneratingSubdomain(false)
+    }
+  }, [form])
+
+  // Debounce the subdomain generation
+  const debouncedGenerateSubdomain = useMemo(() => {
+    let timeoutId: NodeJS.Timeout
+    return (organizationName: string) => {
+      clearTimeout(timeoutId)
+      timeoutId = setTimeout(() => generateSubdomain(organizationName), 500)
+    }
+  }, [generateSubdomain])
+
+  // Watch organization name changes
+  const watchedOrgName = form.watch('organizationName')
+  useEffect(() => {
+    if (watchedOrgName && !form.formState.dirtyFields.subdomain) {
+      debouncedGenerateSubdomain(watchedOrgName)
+    }
+  }, [watchedOrgName, debouncedGenerateSubdomain, form.formState.dirtyFields.subdomain])
 
   useEffect(() => {
     // Redirect if not authenticated
@@ -193,13 +248,27 @@ export default function OnboardingPage() {
                   name="subdomain"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Subdomain</FormLabel>
+                      <FormLabel className="flex items-center gap-2">
+                        Subdomain
+                        {isGeneratingSubdomain && (
+                          <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                        )}
+                        {subdomainGenerated && !form.formState.dirtyFields.subdomain && (
+                          <span className="text-xs text-green-600">✓ Auto-generated</span>
+                        )}
+                      </FormLabel>
                       <FormControl>
                         <div className="flex">
                           <Input
                             placeholder="your-shop"
-                            disabled={isLoading}
+                            disabled={isLoading || isGeneratingSubdomain}
                             {...field}
+                            onChange={(e) => {
+                              field.onChange(e)
+                              if (subdomainGenerated) {
+                                setSubdomainGenerated(false)
+                              }
+                            }}
                           />
                           <span className="flex items-center px-3 text-sm text-muted-foreground">
                             .tintops.app
@@ -207,6 +276,11 @@ export default function OnboardingPage() {
                         </div>
                       </FormControl>
                       <FormMessage />
+                      {subdomainGenerated && !form.formState.dirtyFields.subdomain && (
+                        <p className="text-xs text-muted-foreground">
+                          Auto-generated from your shop name. You can edit this if needed.
+                        </p>
+                      )}
                     </FormItem>
                   )}
                 />
