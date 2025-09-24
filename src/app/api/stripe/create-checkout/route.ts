@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { stripe, STRIPE_CONFIG } from '@/core/lib/stripe'
 import { supabase } from '@/core/lib/supabase'
 import { organizationService } from '@/core/lib/organizations'
+import { logger } from '@/core/lib/logger'
 
 export async function POST(request: NextRequest) {
+  let plan = 'unknown'
+
   try {
-    const { plan } = await request.json()
+    const body = await request.json()
+    plan = body.plan
 
     // Validate plan
     if (!plan || !['monthly', 'yearly'].includes(plan)) {
@@ -39,27 +43,70 @@ export async function POST(request: NextRequest) {
 
     let customerId = organization.stripe_customer_id
 
-    // Create Stripe customer if doesn't exist
+    // Create Stripe customer if doesn't exist - use idempotency for race condition safety
     if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: user.email!,
-        name: organization.name,
-        metadata: {
-          organizationId: organization.id,
-          userId: user.id,
-        },
-      })
+      try {
+        // Use organization ID as idempotency key to prevent duplicate customers
+        const customer = await stripe.customers.create({
+          email: user.email!,
+          name: organization.name,
+          metadata: {
+            organizationId: organization.id,
+            userId: user.id,
+          },
+        }, {
+          idempotencyKey: `customer_${organization.id}_${user.id}`
+        })
 
-      customerId = customer.id
+        customerId = customer.id
 
-      // Update organization with customer ID
-      const { error: updateError } = await organizationService.updateOrganization(organization.id, {
-        stripe_customer_id: customerId,
-      })
+        // Atomically update organization with customer ID, but handle race condition
+        const { error: updateError } = await organizationService.updateOrganization(organization.id, {
+          stripe_customer_id: customerId,
+        })
 
-      if (updateError) {
-        console.error('Error updating organization with customer ID:', updateError)
-        return NextResponse.json({ error: 'Failed to update organization' }, { status: 500 })
+        if (updateError) {
+          logger.error('Error updating organization with customer ID', updateError, {
+            organizationId: organization.id,
+            customerId,
+            userId: user.id
+          })
+
+          // If update failed, fetch the organization again - another request might have succeeded
+          const { organization: refreshedOrg, error: fetchError } = await organizationService.getOrganizationByUserId(user.id)
+
+          if (fetchError || !refreshedOrg) {
+            return NextResponse.json({ error: 'Failed to update organization' }, { status: 500 })
+          }
+
+          // Use the customer ID that was actually saved (handles race condition)
+          customerId = refreshedOrg.stripe_customer_id || customerId
+        }
+
+      } catch (error: unknown) {
+        // If idempotency conflict, fetch existing customer
+        if (error && typeof error === 'object' && 'type' in error && error.type === 'idempotency_error') {
+          logger.info('Idempotency conflict creating customer, using existing', {
+            organizationId: organization.id,
+            userId: user.id
+          })
+
+          // Fetch the organization again to get the customer ID that was already created
+          const { organization: refreshedOrg, error: fetchError } = await organizationService.getOrganizationByUserId(user.id)
+
+          if (fetchError || !refreshedOrg || !refreshedOrg.stripe_customer_id) {
+            logger.error('Failed to fetch organization after idempotency conflict', fetchError)
+            return NextResponse.json({ error: 'Failed to resolve customer creation conflict' }, { status: 500 })
+          }
+
+          customerId = refreshedOrg.stripe_customer_id
+        } else {
+          logger.error('Error creating Stripe customer', error, {
+            organizationId: organization.id,
+            userId: user.id
+          })
+          return NextResponse.json({ error: 'Failed to create Stripe customer' }, { status: 500 })
+        }
       }
     }
 
@@ -101,7 +148,10 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Error creating checkout session:', error)
+    logger.error('Error creating checkout session', error, {
+      plan,
+      userId: 'user_id_from_request'
+    })
     return NextResponse.json({ error: 'Failed to create checkout session' }, { status: 500 })
   }
 }
