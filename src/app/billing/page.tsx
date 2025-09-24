@@ -9,7 +9,7 @@ import { Loader2, CreditCard, CheckCircle, Clock, AlertTriangle } from 'lucide-r
 import { useAuth } from '@/core/contexts/AuthContext'
 import { supabase } from '@/core/lib/supabase'
 import { logger } from '@/core/lib/logger'
-import { StripeProduct, formatPrice, getPricingDisplayInfo } from '@/core/lib/stripe-products'
+import { StripeProduct, getPricingDisplayInfo } from '@/core/lib/stripe-products'
 
 interface Organization {
   id: string
@@ -300,7 +300,7 @@ export default function BillingPage() {
                     {products.map(product =>
                       product.prices
                         .sort((a, b) => (a.unit_amount || 0) - (b.unit_amount || 0))
-                        .map((price, index) => {
+                        .map((price) => {
                           const displayInfo = getPricingDisplayInfo(price)
                           const isYearly = price.recurring?.interval === 'year'
 

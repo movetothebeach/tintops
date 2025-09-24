@@ -92,7 +92,7 @@ export async function getActiveProducts(): Promise<StripeProduct[]> {
 
     // Return cached data if available, even if expired
     if (productsCache) {
-      logger.warn('Returning stale product cache due to API error')
+      logger.info('Returning stale product cache due to API error')
       return productsCache.data
     }
 
