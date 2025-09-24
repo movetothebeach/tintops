@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import Stripe from 'stripe'
@@ -39,7 +38,9 @@ export async function POST(request: NextRequest) {
     switch (event.type) {
       case 'customer.subscription.created':
       case 'customer.subscription.updated': {
-        const subscription = event.data.object as Stripe.Subscription
+        const subscription = event.data.object as Stripe.Subscription & {
+          current_period_end?: number
+        }
 
         // Stripe best practice: Make idempotent by checking current state
         const { data: currentOrg, error: fetchError } = await adminClient
@@ -67,8 +68,8 @@ export async function POST(request: NextRequest) {
               stripe_subscription_id: subscription.id,
               subscription_status: subscription.status,
               subscription_plan: subscription.items.data[0].price.recurring?.interval || 'monthly',
-              current_period_end: (subscription as any).current_period_end
-                ? new Date((subscription as any).current_period_end * 1000).toISOString()
+              current_period_end: subscription.current_period_end
+                ? new Date(subscription.current_period_end * 1000).toISOString()
                 : null,
               trial_ends_at: subscription.trial_end
                 ? new Date(subscription.trial_end * 1000).toISOString()
@@ -148,11 +149,13 @@ export async function POST(request: NextRequest) {
       }
 
       case 'invoice.payment_succeeded': {
-        const invoice = event.data.object as Stripe.Invoice
+        const invoice = event.data.object as Stripe.Invoice & {
+          subscription?: string
+        }
 
         // Mark organization as active after successful payment
-        if ((invoice as any).subscription) {
-          const subscriptionId = (invoice as any).subscription
+        if (invoice.subscription) {
+          const subscriptionId = invoice.subscription
 
           // Check current status before updating (idempotency)
           const { data: currentOrg, error: fetchError } = await adminClient
@@ -203,11 +206,13 @@ export async function POST(request: NextRequest) {
       }
 
       case 'invoice.payment_failed': {
-        const invoice = event.data.object as Stripe.Invoice
+        const invoice = event.data.object as Stripe.Invoice & {
+          subscription?: string
+        }
 
         // Mark subscription as past due
-        if ((invoice as any).subscription) {
-          const subscriptionId = (invoice as any).subscription
+        if (invoice.subscription) {
+          const subscriptionId = invoice.subscription
 
           // Check current status before updating (idempotency)
           const { data: currentOrg, error: fetchError } = await adminClient
