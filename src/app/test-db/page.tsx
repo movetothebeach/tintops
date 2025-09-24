@@ -78,6 +78,12 @@ export default function TestDbPage() {
           <div className="text-sm space-y-1">
             <div>NEXT_PUBLIC_SUPABASE_URL: {process.env.NEXT_PUBLIC_SUPABASE_URL ? '✅ Set' : '❌ Missing'}</div>
             <div>NEXT_PUBLIC_SUPABASE_ANON_KEY: {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '✅ Set' : '❌ Missing'}</div>
+            {process.env.NEXT_PUBLIC_SUPABASE_URL && (
+              <div className="text-xs text-gray-500">URL: {process.env.NEXT_PUBLIC_SUPABASE_URL}</div>
+            )}
+            {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY && (
+              <div className="text-xs text-gray-500">Key: {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.substring(0, 20)}...</div>
+            )}
           </div>
         </div>
       </div>
