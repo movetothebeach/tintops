@@ -54,7 +54,7 @@ export function LoginForm() {
   }
 
   return (
-    <Card className="w-[400px]">
+    <Card className="w-full">
       <CardHeader>
         <CardTitle>Sign In</CardTitle>
         <CardDescription>

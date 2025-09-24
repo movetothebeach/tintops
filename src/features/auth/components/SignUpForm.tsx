@@ -64,7 +64,7 @@ export function SignUpForm() {
   }
 
   return (
-    <Card className="w-[400px]">
+    <Card className="w-full">
       <CardHeader>
         <CardTitle>Create Account</CardTitle>
         <CardDescription>
