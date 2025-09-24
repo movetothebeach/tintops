@@ -32,6 +32,21 @@ export async function POST(request: NextRequest) {
 
     logger.webhook(event.type, 'received', { eventId: event.id })
 
+    // Enhanced logging for subscription events to debug field values
+    if (event.type.startsWith('customer.subscription.')) {
+      const subscription = event.data.object as Stripe.Subscription
+      logger.webhook(event.type, 'subscription_data', {
+        eventId: event.id,
+        subscriptionId: subscription.id,
+        status: subscription.status,
+        current_period_start: subscription.current_period_start,
+        current_period_end: subscription.current_period_end,
+        trial_start: subscription.trial_start,
+        trial_end: subscription.trial_end,
+        customer: subscription.customer
+      })
+    }
+
     const adminClient = createAdminClient()
 
     // Handle the event
@@ -45,7 +60,7 @@ export async function POST(request: NextRequest) {
         // Stripe best practice: Make idempotent by checking current state
         const { data: currentOrg, error: fetchError } = await adminClient
           .from('organizations')
-          .select('subscription_status, stripe_subscription_id')
+          .select('subscription_status, stripe_subscription_id, is_active')
           .eq('stripe_customer_id', subscription.customer as string)
           .single()
 
@@ -58,9 +73,22 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
         }
 
+        // Determine if organization should be active based on subscription status
+        const shouldBeActive = subscription.status === 'active' || subscription.status === 'trialing'
+
         // Only update if state has actually changed (idempotency)
         if (currentOrg.subscription_status !== subscription.status ||
-            currentOrg.stripe_subscription_id !== subscription.id) {
+            currentOrg.stripe_subscription_id !== subscription.id ||
+            currentOrg.is_active !== shouldBeActive) {
+
+          // For trialing subscriptions, use trial_end as current_period_end if current_period_end is missing
+          let periodEnd: string | null = null
+          if (subscription.current_period_end) {
+            periodEnd = new Date(subscription.current_period_end * 1000).toISOString()
+          } else if (subscription.status === 'trialing' && subscription.trial_end) {
+            // For trialing subscriptions, trial_end serves as the period end
+            periodEnd = new Date(subscription.trial_end * 1000).toISOString()
+          }
 
           const { error } = await adminClient
             .from('organizations')
@@ -68,12 +96,11 @@ export async function POST(request: NextRequest) {
               stripe_subscription_id: subscription.id,
               subscription_status: subscription.status,
               subscription_plan: subscription.items.data[0].price.recurring?.interval || 'monthly',
-              current_period_end: subscription.current_period_end
-                ? new Date(subscription.current_period_end * 1000).toISOString()
-                : null,
+              current_period_end: periodEnd,
               trial_ends_at: subscription.trial_end
                 ? new Date(subscription.trial_end * 1000).toISOString()
                 : null,
+              is_active: shouldBeActive,
             })
             .eq('stripe_customer_id', subscription.customer as string)
 
@@ -89,12 +116,18 @@ export async function POST(request: NextRequest) {
           logger.webhook(event.type, 'subscription_updated', {
             subscriptionId: subscription.id,
             oldStatus: currentOrg.subscription_status,
-            newStatus: subscription.status
+            newStatus: subscription.status,
+            oldIsActive: currentOrg.is_active,
+            newIsActive: shouldBeActive,
+            periodEnd: periodEnd,
+            trialEnd: subscription.trial_end ? new Date(subscription.trial_end * 1000).toISOString() : null
           })
         } else {
           logger.webhook(event.type, 'subscription_unchanged', {
             subscriptionId: subscription.id,
-            status: subscription.status
+            status: subscription.status,
+            isActive: currentOrg.is_active,
+            reason: 'no_changes_detected'
           })
         }
         break
