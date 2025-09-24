@@ -47,7 +47,7 @@ export default function Home() {
               return
             }
             if (organization) {
-              // Has organization - redirect to dashboard
+              // Has organization - redirect to dashboard (dashboard will handle subscription check)
               router.push('/dashboard')
               return
             } else {

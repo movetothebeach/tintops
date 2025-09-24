@@ -214,8 +214,8 @@ export default function OnboardingPage() {
         return
       }
 
-      // Success! Redirect to dashboard
-      router.push('/dashboard')
+      // Success! Redirect to billing to select subscription
+      router.push('/billing')
     } catch {
       setError('An unexpected error occurred')
     } finally {

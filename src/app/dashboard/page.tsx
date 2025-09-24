@@ -29,7 +29,14 @@ export default function DashboardPage() {
       router.push('/onboarding')
       return
     }
-  }, [user, organization, authLoading, orgLoading, router])
+
+    // Redirect to billing if user has organization but no subscription access
+    if (!authLoading && !orgLoading && !subscription.loading &&
+        user && organization && !subscription.hasAccess) {
+      router.push('/billing')
+      return
+    }
+  }, [user, organization, subscription, authLoading, orgLoading, router])
 
   const handleSignOut = async () => {
     await signOut()
@@ -56,8 +63,8 @@ export default function DashboardPage() {
     return <Badge variant="outline">No Subscription</Badge>
   }
 
-  // Show loading while checking authentication
-  if (authLoading || orgLoading) {
+  // Show loading while checking authentication, organization, and subscription
+  if (authLoading || orgLoading || subscription.loading) {
     return <div className="flex h-screen items-center justify-center">Loading...</div>
   }
 
@@ -69,6 +76,11 @@ export default function DashboardPage() {
   // Don't render content if no organization
   if (!organization) {
     return null // Will redirect
+  }
+
+  // Don't render content if no subscription access
+  if (!subscription.hasAccess) {
+    return null // Will redirect to billing
   }
 
   return (

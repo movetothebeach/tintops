@@ -21,19 +21,19 @@ export default function BillingCanceledPage() {
             <div className="rounded-lg bg-orange-50 border border-orange-200 p-4">
               <h3 className="font-medium text-orange-800 mb-2">What Happened?</h3>
               <p className="text-sm text-orange-700">
-                Your subscription setup was canceled. Your organization is still active,
-                but you&apos;ll need to subscribe to access premium features after your trial ends.
+                Your subscription setup was canceled. Your organization is still created,
+                but you&apos;ll need to complete billing to start your free trial and access TintOps features.
               </p>
             </div>
             <div className="space-y-2">
               <Button asChild className="w-full">
-                <Link href="/dashboard">
-                  Go to Dashboard
+                <Link href="/billing">
+                  Complete Billing
                 </Link>
               </Button>
               <Button asChild variant="outline" className="w-full">
-                <Link href="/billing">
-                  Try Again
+                <Link href="/">
+                  Back to Home
                 </Link>
               </Button>
             </div>
