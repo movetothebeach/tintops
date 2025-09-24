@@ -227,55 +227,57 @@ export default function BillingPage() {
           <p className="text-gray-600 mt-2">Manage your TintOps subscription and billing information</p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* Current Subscription Status */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5" />
-                Current Subscription
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className={`flex items-center gap-2 p-3 rounded-lg ${statusInfo.bg} ${statusInfo.border} border`}>
-                <StatusIcon className={`h-5 w-5 ${statusInfo.color}`} />
-                <span className="font-medium">{statusInfo.label}</span>
-              </div>
-
-              {organization.subscription_plan && (
-                <div>
-                  <span className="text-sm text-gray-500">Plan:</span>
-                  <p className="font-medium capitalize">{organization.subscription_plan}</p>
+        <div className="grid gap-6">
+          {/* Current Subscription Status - Only show if user has active subscription */}
+          {(organization.subscription_status && organization.subscription_status !== 'canceled' && organization.subscription_status !== null) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5" />
+                  Current Subscription
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className={`flex items-center gap-2 p-3 rounded-lg ${statusInfo.bg} ${statusInfo.border} border`}>
+                  <StatusIcon className={`h-5 w-5 ${statusInfo.color}`} />
+                  <span className="font-medium">{statusInfo.label}</span>
                 </div>
-              )}
 
-              {organization.trial_ends_at && (
-                <div>
-                  <span className="text-sm text-gray-500">Trial ends:</span>
-                  <p className="font-medium">{formatDate(organization.trial_ends_at)}</p>
-                </div>
-              )}
+                {organization.subscription_plan && (
+                  <div>
+                    <span className="text-sm text-gray-500">Plan:</span>
+                    <p className="font-medium capitalize">{organization.subscription_plan}</p>
+                  </div>
+                )}
 
-              {organization.current_period_end && (
-                <div>
-                  <span className="text-sm text-gray-500">Next billing date:</span>
-                  <p className="font-medium">{formatDate(organization.current_period_end)}</p>
-                </div>
-              )}
+                {organization.trial_ends_at && (
+                  <div>
+                    <span className="text-sm text-gray-500">Trial ends:</span>
+                    <p className="font-medium">{formatDate(organization.trial_ends_at)}</p>
+                  </div>
+                )}
 
-              {organization.stripe_customer_id && (
-                <Button
-                  onClick={handleManageBilling}
-                  disabled={loadingPriceId === 'manage'}
-                  variant="outline"
-                  className="w-full"
-                >
-                  {loadingPriceId === 'manage' ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                  Manage Billing
-                </Button>
-              )}
-            </CardContent>
-          </Card>
+                {organization.current_period_end && (
+                  <div>
+                    <span className="text-sm text-gray-500">Next billing date:</span>
+                    <p className="font-medium">{formatDate(organization.current_period_end)}</p>
+                  </div>
+                )}
+
+                {organization.stripe_customer_id && (
+                  <Button
+                    onClick={handleManageBilling}
+                    disabled={loadingPriceId === 'manage'}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    {loadingPriceId === 'manage' ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    Manage Billing
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Subscription Plans */}
           {(!organization.subscription_status || organization.subscription_status === 'canceled') && (
@@ -285,10 +287,7 @@ export default function BillingPage() {
                   Choose Your TintOps Plan
                 </h2>
                 <p className="text-gray-600">
-                  {products.length > 0 && products[0].prices.some(p => p.recurring?.trial_period_days)
-                    ? `Start your free ${products[0].prices.find(p => p.recurring?.trial_period_days)?.recurring?.trial_period_days}-day trial today. No credit card required.`
-                    : 'Choose the plan that works best for your tint shop.'
-                  }
+                  Start with TintOps to grow your tint business.
                 </p>
               </div>
 
@@ -331,12 +330,27 @@ export default function BillingPage() {
                                   </span>
                                   <span className="text-gray-500 ml-2">/month</span>
                                 </div>
-                                {isYearly && (
-                                  <div className="mt-1">
-                                    <span className="text-sm text-green-600 font-medium">
-                                      Save ${Math.round((monthlyPrice * 12) - ((price.unit_amount || 0) / 100))}/year
-                                    </span>
-                                  </div>
+                                {isYearly && products.length > 0 && (
+                                  (() => {
+                                    // Find monthly price for comparison
+                                    const monthlyPriceItem = products[0].prices.find(p => p.recurring?.interval === 'month')
+                                    const yearlyPriceItem = price
+
+                                    if (monthlyPriceItem && yearlyPriceItem.unit_amount && monthlyPriceItem.unit_amount) {
+                                      const yearlyTotal = yearlyPriceItem.unit_amount / 100
+                                      const monthlyTotal = (monthlyPriceItem.unit_amount / 100) * 12
+                                      const savings = Math.round(monthlyTotal - yearlyTotal)
+
+                                      return savings > 0 ? (
+                                        <div className="mt-1">
+                                          <span className="text-sm text-green-600 font-medium">
+                                            Save ${savings}/year
+                                          </span>
+                                        </div>
+                                      ) : null
+                                    }
+                                    return null
+                                  })()
                                 )}
                                 <div className="text-sm text-gray-500 mt-2">
                                   {isYearly ? `Billed annually (${displayInfo.amount})` : 'Billed monthly'}
@@ -355,7 +369,7 @@ export default function BillingPage() {
                                 {loadingPriceId === price.id ? (
                                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                                 ) : null}
-                                Start Free Trial
+                                {displayInfo.trialDays ? 'Start Free Trial' : 'Subscribe Now'}
                               </Button>
 
                               <div className="space-y-3 text-sm">
@@ -396,51 +410,13 @@ export default function BillingPage() {
 
               <div className="text-center mt-8">
                 <p className="text-sm text-gray-500">
-                  🔒 Secure payment processing by Stripe • Cancel anytime • No setup fees
+                  🔒 Secure payment processing by Stripe • Cancel anytime
                 </p>
               </div>
             </div>
           )}
         </div>
 
-        {/* Features included */}
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>What&apos;s Included</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span className="text-sm">Unlimited customers</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span className="text-sm">SMS automation</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span className="text-sm">Team collaboration</span>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span className="text-sm">Advanced analytics</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span className="text-sm">Priority support</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span className="text-sm">API access</span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   )
