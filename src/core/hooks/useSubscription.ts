@@ -85,13 +85,16 @@ export function useSubscription(): SubscriptionStatus {
         const isCanceled = status === 'canceled' || status === null
 
         // Determine if user has access
+        // CRITICAL: Only grant access for verified Stripe subscriptions
         let hasAccess = false
 
         if (isActive) {
           hasAccess = true
-        } else if (isTrialing && trialEndsAt) {
+        } else if (isTrialing && trialEndsAt && organization.stripe_subscription_id) {
+          // Only allow trial access if there's a real Stripe subscription ID
           hasAccess = now <= trialEndsAt
         }
+        // No other conditions grant access - must go through Stripe
 
         setSubscriptionData({
           isActive,

@@ -45,9 +45,9 @@ export const organizationService = {
       const orgInsert = {
         name: data.name,
         subdomain: data.subdomain,
-        is_active: true,
+        is_active: false, // Only active after real subscription
         onboarding_completed: false,
-        subscription_status: 'trialing',
+        // NO subscription data - only set by Stripe webhooks
       } as OrganizationInsert
 
       const { data: organization, error: orgError } = await adminClient

@@ -48,6 +48,8 @@ For any implementation choice:
 ## ⛔ Universal No-Go Zone
 Some things are always wrong in production software:
 
+### NEVER CREATE MOCK DATA
+
 ### Security Compromises
 Never acceptable: Exposing secrets, skipping authentication checks, trusting user input without validation, implementing custom crypto/auth when services exist.
 
