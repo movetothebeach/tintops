@@ -7,7 +7,7 @@ import { auth } from '@/core/lib/auth'
 interface AuthContextType {
   user: User | null
   loading: boolean
-  signUp: (email: string, password: string) => Promise<{ data: unknown; error: unknown }>
+  signUp: (email: string, password: string, metadata?: Record<string, string>) => Promise<{ data: unknown; error: unknown }>
   signIn: (email: string, password: string) => Promise<{ data: unknown; error: unknown }>
   signOut: () => Promise<{ error: unknown }>
 }

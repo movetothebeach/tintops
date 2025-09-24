@@ -16,8 +16,6 @@ const signUpSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   confirmPassword: z.string(),
-  organizationName: z.string().min(2, 'Organization name must be at least 2 characters'),
-  subdomain: z.string().min(3, 'Subdomain must be at least 3 characters').regex(/^[a-z0-9-]+$/, 'Subdomain can only contain lowercase letters, numbers, and hyphens'),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
@@ -38,8 +36,6 @@ export function SignUpForm() {
       email: '',
       password: '',
       confirmPassword: '',
-      organizationName: '',
-      subdomain: '',
     },
   })
 
@@ -48,16 +44,18 @@ export function SignUpForm() {
       setIsLoading(true)
       setError(null)
 
-      // First, sign up the user
-      const { error } = await signUp(values.email, values.password)
+      // Sign up the user with their full name in metadata
+      const { error } = await signUp(values.email, values.password, {
+        full_name: values.fullName
+      })
 
       if (error) {
         setError(error instanceof Error ? error.message : 'Sign up failed')
         return
       }
 
-      // Redirect to onboarding after successful signup
-      router.push('/onboarding')
+      // Redirect to email confirmation page
+      router.push('/auth/confirm')
     } catch {
       setError('An unexpected error occurred')
     } finally {
@@ -70,7 +68,7 @@ export function SignUpForm() {
       <CardHeader>
         <CardTitle>Create Account</CardTitle>
         <CardDescription>
-          Set up your TintOps account and organization
+          Create your TintOps account to get started
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -106,45 +104,6 @@ export function SignUpForm() {
                       disabled={isLoading}
                       {...field}
                     />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="organizationName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Shop Name</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Your tint shop name"
-                      disabled={isLoading}
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="subdomain"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Subdomain</FormLabel>
-                  <FormControl>
-                    <div className="flex">
-                      <Input
-                        placeholder="your-shop"
-                        disabled={isLoading}
-                        {...field}
-                      />
-                      <span className="flex items-center px-3 text-sm text-muted-foreground">
-                        .tintops.app
-                      </span>
-                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>

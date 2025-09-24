@@ -6,10 +6,13 @@ export type AuthUser = User
 
 export const auth = {
   // Sign up new user
-  async signUp(email: string, password: string) {
+  async signUp(email: string, password: string, metadata?: Record<string, string>) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: metadata ? {
+        data: metadata
+      } : undefined
     })
     return { data, error }
   },
