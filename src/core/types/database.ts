@@ -191,6 +191,7 @@ export type Database = {
       }
       organizations: {
         Row: {
+          cancel_at_period_end: boolean | null
           created_at: string | null
           current_period_end: string | null
           id: string
@@ -209,6 +210,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          cancel_at_period_end?: boolean | null
           created_at?: string | null
           current_period_end?: string | null
           id?: string
@@ -227,6 +229,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          cancel_at_period_end?: boolean | null
           created_at?: string | null
           current_period_end?: string | null
           id?: string

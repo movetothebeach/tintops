@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
         current_period_end: subscription.current_period_end,
         trial_start: subscription.trial_start,
         trial_end: subscription.trial_end,
+        cancel_at_period_end: subscription.cancel_at_period_end,
         customer: subscription.customer
       })
     }
@@ -60,6 +61,7 @@ export async function POST(request: NextRequest) {
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription & {
           current_period_end?: number
+          cancel_at_period_end?: boolean
         }
 
         // Stripe best practice: Make idempotent by checking current state
@@ -79,7 +81,11 @@ export async function POST(request: NextRequest) {
         }
 
         // Determine if organization should be active based on subscription status
-        const shouldBeActive = subscription.status === 'active' || subscription.status === 'trialing'
+        // Allow access during payment retry period (past_due) for better customer experience
+        const shouldBeActive =
+          subscription.status === 'active' ||
+          subscription.status === 'trialing' ||
+          subscription.status === 'past_due'  // Grace period during payment retries
 
         // Only update if state has actually changed (idempotency)
         if (currentOrg.subscription_status !== subscription.status ||
@@ -106,6 +112,7 @@ export async function POST(request: NextRequest) {
                 ? new Date(subscription.trial_end * 1000).toISOString()
                 : null,
               is_active: shouldBeActive,
+              cancel_at_period_end: subscription.cancel_at_period_end || false,
             })
             .eq('stripe_customer_id', subscription.customer as string)
 
@@ -164,6 +171,8 @@ export async function POST(request: NextRequest) {
             .update({
               subscription_status: 'canceled',
               current_period_end: null,
+              is_active: false,  // Revoke access when subscription is deleted
+              cancel_at_period_end: false,  // Reset since subscription is fully canceled
             })
             .eq('stripe_customer_id', subscription.customer as string)
 

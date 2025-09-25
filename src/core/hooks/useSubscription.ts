@@ -74,27 +74,22 @@ export function useSubscription(): SubscriptionStatus {
         }
 
         const status = organization.subscription_status
-        const now = new Date()
         const trialEndsAt = organization.trial_ends_at ? new Date(organization.trial_ends_at) : null
         const currentPeriodEnd = organization.current_period_end ? new Date(organization.current_period_end) : null
 
-        // Determine subscription state
+        // Determine subscription state for UI display
         const isActive = status === 'active'
         const isTrialing = status === 'trialing'
         const isPastDue = status === 'past_due'
         const isCanceled = status === 'canceled' || status === null
 
-        // Determine if user has access
-        // CRITICAL: Only grant access for verified Stripe subscriptions
-        let hasAccess = false
-
-        if (isActive) {
-          hasAccess = true
-        } else if (isTrialing && trialEndsAt && organization.stripe_subscription_id) {
-          // Only allow trial access if there's a real Stripe subscription ID
-          hasAccess = now <= trialEndsAt
-        }
-        // No other conditions grant access - must go through Stripe
+        // Trust the webhook-maintained is_active field as the single source of truth
+        // The webhook handles all subscription logic including:
+        // - Active subscriptions
+        // - Trial periods
+        // - Canceled but paid through period
+        // - Payment failures
+        const hasAccess = organization.is_active === true
 
         setSubscriptionData({
           isActive,
