@@ -171,9 +171,11 @@ export function OnboardingForm({ defaultFullName = '' }: OnboardingFormProps) {
             value={subdomain}
             onChange={(e) => {
               // Only allow lowercase letters, numbers, and hyphens
+              // Convert spaces to hyphens for better UX
               const sanitized = e.target.value
                 .toLowerCase()
-                .replace(/[^a-z0-9-]/g, '')
+                .replace(/\s/g, '-')  // Convert spaces to hyphens
+                .replace(/[^a-z0-9-]/g, '')  // Remove other invalid characters
               setSubdomain(sanitized)
               setSubdomainGenerated(false)
             }}
