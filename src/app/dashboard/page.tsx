@@ -6,10 +6,10 @@ import Link from 'next/link'
 import { useAuth } from '@/core/contexts/AuthContext'
 import { useOrganization } from '@/core/contexts/OrganizationContext'
 import { useSubscription } from '@/core/hooks/useSubscription'
+import { DashboardLayout } from '@/components/dashboard-layout'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { CreditCard, CheckCircle, Clock, AlertTriangle } from 'lucide-react'
+import { CreditCard, Users, MessageSquare } from 'lucide-react'
 
 export default function DashboardPage() {
   const { user, signOut, loading: authLoading } = useAuth()
@@ -30,10 +30,10 @@ export default function DashboardPage() {
       return
     }
 
-    // Redirect to billing if user has organization but no subscription access
+    // Redirect to subscription setup if user has organization but no subscription access
     if (!authLoading && !orgLoading && !subscription.loading &&
         user && organization && !subscription.hasAccess) {
-      router.push('/billing')
+      router.push('/subscription-setup')
       return
     }
   }, [user, organization, subscription, authLoading, orgLoading, router])
@@ -43,25 +43,6 @@ export default function DashboardPage() {
     window.location.href = '/'
   }
 
-  const getSubscriptionBadge = () => {
-    if (subscription.loading) return <Badge variant="outline">Loading...</Badge>
-
-    if (subscription.isActive) {
-      return <Badge className="bg-green-500"><CheckCircle className="h-3 w-3 mr-1" />Active</Badge>
-    }
-
-    if (subscription.isTrialing) {
-      const daysLeft = subscription.trialEndsAt ?
-        Math.max(0, Math.ceil((subscription.trialEndsAt.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))) : 0
-      return <Badge className="bg-blue-500"><Clock className="h-3 w-3 mr-1" />Trial ({daysLeft} days left)</Badge>
-    }
-
-    if (subscription.isPastDue) {
-      return <Badge variant="destructive"><AlertTriangle className="h-3 w-3 mr-1" />Past Due</Badge>
-    }
-
-    return <Badge variant="outline">No Subscription</Badge>
-  }
 
   // Show loading while checking authentication, organization, and subscription
   if (authLoading || orgLoading || subscription.loading) {
@@ -80,11 +61,11 @@ export default function DashboardPage() {
 
   // Don't render content if no subscription access
   if (!subscription.hasAccess) {
-    return null // Will redirect to billing
+    return null // Will redirect to subscription-setup
   }
 
   return (
-    <div className="container mx-auto p-6">
+    <DashboardLayout>
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold">
@@ -100,60 +81,6 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {/* Subscription Status Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              Subscription
-              {getSubscriptionBadge()}
-            </CardTitle>
-            <CardDescription>
-              Your current billing status and plan information
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {subscription.plan && (
-              <div>
-                <span className="text-sm text-muted-foreground">Plan:</span>
-                <p className="font-medium capitalize">{subscription.plan}</p>
-              </div>
-            )}
-
-            {subscription.trialEndsAt && subscription.isTrialing && (
-              <div>
-                <span className="text-sm text-muted-foreground">Trial ends:</span>
-                <p className="font-medium">
-                  {subscription.trialEndsAt.toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric'
-                  })}
-                </p>
-              </div>
-            )}
-
-            {subscription.currentPeriodEnd && subscription.isActive && (
-              <div>
-                <span className="text-sm text-muted-foreground">Next billing:</span>
-                <p className="font-medium">
-                  {subscription.currentPeriodEnd.toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric'
-                  })}
-                </p>
-              </div>
-            )}
-
-            <Button asChild variant="outline" className="w-full">
-              <Link href="/billing">
-                <CreditCard className="h-4 w-4 mr-2" />
-                Manage Billing
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-
         {/* Organization Info */}
         <Card>
           <CardHeader>
@@ -208,23 +135,23 @@ export default function DashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
-            <Button asChild variant="outline" className="w-full justify-start">
-              <Link href="/billing">
-                <CreditCard className="h-4 w-4 mr-2" />
-                View Billing
-              </Link>
-            </Button>
             <Button variant="outline" className="w-full justify-start" disabled>
-              <span className="h-4 w-4 mr-2">👥</span>
+              <Users className="h-4 w-4 mr-2" />
               Manage Team (Coming Soon)
             </Button>
             <Button variant="outline" className="w-full justify-start" disabled>
-              <span className="h-4 w-4 mr-2">📱</span>
+              <MessageSquare className="h-4 w-4 mr-2" />
               SMS Setup (Coming Soon)
+            </Button>
+            <Button asChild variant="outline" className="w-full justify-start">
+              <Link href="/billing">
+                <CreditCard className="h-4 w-4 mr-2" />
+                Manage Billing
+              </Link>
             </Button>
           </CardContent>
         </Card>
       </div>
-    </div>
+    </DashboardLayout>
   )
 }

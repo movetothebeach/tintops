@@ -214,8 +214,8 @@ export default function OnboardingPage() {
         return
       }
 
-      // Success! Redirect to billing to select subscription
-      router.push('/billing')
+      // Success! Redirect to subscription setup to select a plan
+      router.push('/subscription-setup')
     } catch {
       setError('An unexpected error occurred')
     } finally {
@@ -252,8 +252,8 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="container flex h-screen w-screen flex-col items-center justify-center">
-      <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[450px]">
+    <div className="min-h-screen flex items-center justify-center px-4 py-12">
+      <div className="w-full max-w-md space-y-6">
         <div className="flex flex-col space-y-2 text-center">
           <h1 className="text-2xl font-semibold tracking-tight">
             Welcome to TintOps!
