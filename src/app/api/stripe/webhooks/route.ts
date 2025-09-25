@@ -93,12 +93,19 @@ export async function POST(request: NextRequest) {
             currentOrg.is_active !== shouldBeActive ||
             currentOrg.cancel_at_period_end !== (subscription.cancel_at_period_end || false)) {
 
-          // For trialing subscriptions, use trial_end as current_period_end if current_period_end is missing
+          // Get current_period_end from subscription or subscription items
           let periodEnd: string | null = null
+
+          // Check for current_period_end at root level (some webhook formats)
           if (subscription.current_period_end) {
             periodEnd = new Date(subscription.current_period_end * 1000).toISOString()
-          } else if (subscription.status === 'trialing' && subscription.trial_end) {
-            // For trialing subscriptions, trial_end serves as the period end
+          }
+          // Check in subscription items (other webhook formats)
+          else if ((subscription as any).items?.data?.[0]?.current_period_end) {
+            periodEnd = new Date((subscription as any).items.data[0].current_period_end * 1000).toISOString()
+          }
+          // For trialing subscriptions, use trial_end as fallback
+          else if (subscription.status === 'trialing' && subscription.trial_end) {
             periodEnd = new Date(subscription.trial_end * 1000).toISOString()
           }
 
