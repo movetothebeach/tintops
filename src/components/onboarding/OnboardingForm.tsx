@@ -9,11 +9,11 @@ import { Loader2 } from 'lucide-react'
 import { createOrganization } from '@/app/actions/organizations'
 import { getCookie } from '@/core/lib/utils'
 
-function SubmitButton() {
+function SubmitButton({ disabled = false }: { disabled?: boolean }) {
   const { pending } = useFormStatus()
 
   return (
-    <Button type="submit" className="w-full" disabled={pending}>
+    <Button type="submit" className="w-full" disabled={pending || disabled}>
       {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
       {pending ? 'Creating organization...' : 'Create Organization'}
     </Button>
@@ -47,6 +47,8 @@ export function OnboardingForm({ defaultFullName = '' }: OnboardingFormProps) {
   const [organizationName, setOrganizationName] = useState('')
   const [isGeneratingSubdomain, setIsGeneratingSubdomain] = useState(false)
   const [subdomainGenerated, setSubdomainGenerated] = useState(true)
+  const [isCheckingAvailability, setIsCheckingAvailability] = useState(false)
+  const [subdomainAvailable, setSubdomainAvailable] = useState<boolean | null>(null)
 
   // Auto-generate subdomain when organization name changes
   useEffect(() => {
@@ -89,6 +91,34 @@ export function OnboardingForm({ defaultFullName = '' }: OnboardingFormProps) {
     return () => clearTimeout(timer)
   }, [organizationName, subdomainGenerated])
 
+  // Check subdomain availability when manually edited
+  useEffect(() => {
+    // Only check if user manually edited (not auto-generated)
+    if (subdomainGenerated || !subdomain || subdomain.length < 3) {
+      setSubdomainAvailable(null)
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      setIsCheckingAvailability(true)
+      try {
+        const response = await fetch(`/api/organizations/generate-subdomain?subdomain=${encodeURIComponent(subdomain)}`)
+
+        if (response.ok) {
+          const data = await response.json()
+          setSubdomainAvailable(data.available && data.valid)
+        }
+      } catch (error) {
+        console.error('Error checking subdomain availability:', error)
+        setSubdomainAvailable(null)
+      } finally {
+        setIsCheckingAvailability(false)
+      }
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [subdomain, subdomainGenerated])
+
   return (
     <form action={formAction} className="space-y-4">
       <div className="space-y-2">
@@ -120,8 +150,17 @@ export function OnboardingForm({ defaultFullName = '' }: OnboardingFormProps) {
           {isGeneratingSubdomain && (
             <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
           )}
-          {subdomainGenerated && (
+          {isCheckingAvailability && (
+            <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+          )}
+          {subdomainGenerated && !isGeneratingSubdomain && (
             <span className="text-xs text-green-600">✓ Auto-generated</span>
+          )}
+          {!subdomainGenerated && subdomainAvailable === true && !isCheckingAvailability && (
+            <span className="text-xs text-green-600">✓ Available</span>
+          )}
+          {!subdomainGenerated && subdomainAvailable === false && !isCheckingAvailability && (
+            <span className="text-xs text-red-600">✗ Not available</span>
           )}
         </Label>
         <div className="flex">
@@ -131,7 +170,11 @@ export function OnboardingForm({ defaultFullName = '' }: OnboardingFormProps) {
             placeholder="your-shop"
             value={subdomain}
             onChange={(e) => {
-              setSubdomain(e.target.value)
+              // Only allow lowercase letters, numbers, and hyphens
+              const sanitized = e.target.value
+                .toLowerCase()
+                .replace(/[^a-z0-9-]/g, '')
+              setSubdomain(sanitized)
               setSubdomainGenerated(false)
             }}
             disabled={isGeneratingSubdomain}
@@ -144,6 +187,11 @@ export function OnboardingForm({ defaultFullName = '' }: OnboardingFormProps) {
         <p className="text-xs text-muted-foreground">
           Your customers will visit this URL to book appointments and view your services
         </p>
+        {!subdomainGenerated && subdomainAvailable === false && (
+          <p className="text-xs text-red-600">
+            This subdomain is already taken. Please choose a different one.
+          </p>
+        )}
       </div>
 
       {state.error && (
@@ -152,7 +200,7 @@ export function OnboardingForm({ defaultFullName = '' }: OnboardingFormProps) {
         </div>
       )}
 
-      <SubmitButton />
+      <SubmitButton disabled={!subdomainGenerated && subdomainAvailable === false} />
     </form>
   )
 }
