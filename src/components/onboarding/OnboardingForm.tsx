@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Loader2 } from 'lucide-react'
 import { createOrganization } from '@/app/actions/organizations'
+import { getCookie } from '@/core/lib/utils'
 
 function SubmitButton() {
   const { pending } = useFormStatus()
@@ -56,9 +57,13 @@ export function OnboardingForm({ defaultFullName = '' }: OnboardingFormProps) {
     const timer = setTimeout(async () => {
       setIsGeneratingSubdomain(true)
       try {
+        const csrfToken = getCookie('csrf-token')
         const response = await fetch('/api/organizations/generate-subdomain', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-csrf-token': csrfToken || ''
+          },
           body: JSON.stringify({ organizationName }),
         })
 

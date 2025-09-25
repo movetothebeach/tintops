@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/core/contexts/AuthContext'
+import { getCookie } from '@/core/lib/utils'
 
 const signUpSchema = z.object({
   fullName: z.string().min(2, 'Full name must be at least 2 characters'),
@@ -45,9 +46,13 @@ export function SignUpForm() {
       setError(null)
 
       // First, check if email already exists
+      const csrfToken = getCookie('csrf-token')
       const checkResponse = await fetch('/api/auth/check-email', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-csrf-token': csrfToken || ''
+        },
         body: JSON.stringify({ email: values.email })
       })
 
