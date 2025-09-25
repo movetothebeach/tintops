@@ -1,4 +1,4 @@
-import { createAdminClient } from './supabase'
+import { createServiceClient } from '@/core/lib/supabase/server'
 import { Database } from '@/core/types/database'
 import { isReservedSubdomain } from '@/core/utils/slug'
 import { logger } from './logger'
@@ -18,7 +18,7 @@ export interface CreateOrganizationData {
 export const organizationService = {
   async updateOrganization(orgId: string, updates: Partial<Organization>): Promise<{ error: string | null }> {
     try {
-      const adminClient = createAdminClient()
+      const adminClient = await createServiceClient()
 
       const { error } = await adminClient
         .from('organizations')
@@ -39,7 +39,7 @@ export const organizationService = {
 
   async createOrganization(data: CreateOrganizationData): Promise<{ organization: Organization; error: null } | { organization: null; error: string }> {
     try {
-      const adminClient = createAdminClient()
+      const adminClient = await createServiceClient()
 
       // Start a transaction by creating organization first
       const orgInsert = {
@@ -91,7 +91,7 @@ export const organizationService = {
 
   async getOrganizationByUserId(userId: string): Promise<{ organization: Organization | null; error: string | null }> {
     try {
-      const adminClient = createAdminClient()
+      const adminClient = await createServiceClient()
 
       const { data: user, error: userError } = await adminClient
         .from('users')
@@ -117,7 +117,7 @@ export const organizationService = {
         return false
       }
 
-      const adminClient = createAdminClient()
+      const adminClient = await createServiceClient()
 
       const { data, error } = await adminClient
         .from('organizations')

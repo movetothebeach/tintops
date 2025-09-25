@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import Stripe from 'stripe'
 import { stripe, STRIPE_CONFIG } from '@/core/lib/stripe'
-import { createAdminClient } from '@/core/lib/supabase'
+import { createServiceClient } from '@/core/lib/supabase/server'
 import { logger } from '@/core/lib/logger'
 
 export async function POST(request: NextRequest) {
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const adminClient = createAdminClient()
+    const adminClient = await createServiceClient()
 
     // Handle the event
     switch (event.type) {

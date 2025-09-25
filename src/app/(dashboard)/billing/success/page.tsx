@@ -5,8 +5,8 @@ import { CheckCircle } from 'lucide-react'
 
 export default function BillingSuccessPage() {
   return (
-    <div className="container flex h-screen w-screen flex-col items-center justify-center">
-      <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[450px]">
+    <div className="min-h-screen flex items-center justify-center px-4 py-12">
+      <div className="w-full max-w-md space-y-6">
         <Card>
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">

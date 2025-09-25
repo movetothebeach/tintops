@@ -1,75 +1,39 @@
-'use client'
-
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, CreditCard, CheckCircle, Clock, AlertTriangle } from 'lucide-react'
-import { useAuth } from '@/core/contexts/AuthContext'
-import { useOrganization } from '@/core/contexts/OrganizationContext'
-import { useSubscription } from '@/core/hooks/useSubscription'
-import { DashboardLayout } from '@/components/dashboard-layout'
-import { supabase } from '@/core/lib/supabase'
-import { logger } from '@/core/lib/logger'
+import { CheckCircle, Clock, AlertTriangle } from 'lucide-react'
+import { createServerClient } from '@/core/lib/supabase/server'
+import { organizationService } from '@/core/lib/organizations'
+import { BillingPortalButton } from '@/components/billing/BillingPortalButton'
+import { redirect } from 'next/navigation'
 
-export default function BillingPage() {
-  const { user, loading: authLoading } = useAuth()
-  const { organization, loading: orgLoading } = useOrganization()
-  const subscription = useSubscription()
-  const router = useRouter()
+export default async function BillingPage() {
+  const supabase = await createServerClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  useEffect(() => {
-    if (authLoading || orgLoading || subscription.loading) return
+  if (!user) {
+    redirect('/auth/login')
+  }
 
-    if (!user) {
-      router.push('/auth/login')
-      return
-    }
+  const { organization } = await organizationService.getOrganizationByUserId(user.id)
 
-    if (!organization) {
-      router.push('/onboarding')
-      return
-    }
+  if (!organization) {
+    redirect('/onboarding')
+  }
 
-    // Redirect to subscription setup if no active subscription
-    if (!subscription.hasAccess) {
-      router.push('/subscription-setup')
-      return
-    }
-  }, [user, organization, authLoading, orgLoading, subscription, router])
-
-
-  const handleManageBilling = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        router.push('/auth/login')
-        return
-      }
-
-      const response = await fetch('/api/stripe/create-portal', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to create portal session')
-      }
-
-      const { url } = await response.json()
-      window.location.href = url
-    } catch (error) {
-      logger.error('Error opening billing portal', error)
-      alert('Failed to open billing portal. Please try again.')
-    }
+  // Prepare subscription data
+  const subscription = {
+    isActive: organization.subscription_status === 'active',
+    isTrialing: organization.subscription_status === 'trialing',
+    isPastDue: organization.subscription_status === 'past_due',
+    isCanceled: organization.subscription_status === 'canceled' || !organization.subscription_status,
+    plan: organization.subscription_plan,
+    trialEndsAt: organization.trial_ends_at ? new Date(organization.trial_ends_at) : null,
+    currentPeriodEnd: organization.current_period_end ? new Date(organization.current_period_end) : null,
   }
 
   const getSubscriptionBadge = () => {
-    if (subscription.loading) return <Badge variant="outline">Loading...</Badge>
-
     if (subscription.isActive) {
       return <Badge className="bg-green-500"><CheckCircle className="h-3 w-3 mr-1" />Active</Badge>
     }
@@ -87,22 +51,8 @@ export default function BillingPage() {
     return <Badge variant="outline">No Subscription</Badge>
   }
 
-  if (authLoading || orgLoading || subscription.loading) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
-      </DashboardLayout>
-    )
-  }
-
-  if (!user || !organization || !subscription.hasAccess) {
-    return null
-  }
-
   return (
-    <DashboardLayout>
+    <>
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Billing</h1>
@@ -156,18 +106,11 @@ export default function BillingPage() {
               </div>
             )}
 
-            <Button
-              onClick={handleManageBilling}
-              variant="outline"
-              className="w-full"
-            >
-              <CreditCard className="h-4 w-4 mr-2" />
-              Manage Subscription
-            </Button>
+            <BillingPortalButton />
           </CardContent>
         </Card>
 
       </div>
-    </DashboardLayout>
+    </>
   )
 }

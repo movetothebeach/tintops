@@ -1,71 +1,30 @@
-'use client'
-
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { useAuth } from '@/core/contexts/AuthContext'
-import { useOrganization } from '@/core/contexts/OrganizationContext'
-import { useSubscription } from '@/core/hooks/useSubscription'
-import { DashboardLayout } from '@/components/dashboard-layout'
+import { createServerClient } from '@/core/lib/supabase/server'
+import { organizationService } from '@/core/lib/organizations'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { CreditCard, Users, MessageSquare } from 'lucide-react'
+import { SignOutButton } from '@/components/dashboard/SignOutButton'
+import { redirect } from 'next/navigation'
 
-export default function DashboardPage() {
-  const { user, signOut, loading: authLoading } = useAuth()
-  const { organization, loading: orgLoading } = useOrganization()
-  const subscription = useSubscription()
-  const router = useRouter()
+export default async function DashboardPage() {
+  const supabase = await createServerClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  useEffect(() => {
-    // Redirect if not authenticated
-    if (!authLoading && !user) {
-      router.push('/auth/login')
-      return
-    }
-
-    // Redirect to onboarding if authenticated but no organization
-    if (!authLoading && !orgLoading && user && !organization) {
-      router.push('/onboarding')
-      return
-    }
-
-    // Redirect to subscription setup if user has organization but no subscription access
-    if (!authLoading && !orgLoading && !subscription.loading &&
-        user && organization && !subscription.hasAccess) {
-      router.push('/subscription-setup')
-      return
-    }
-  }, [user, organization, subscription, authLoading, orgLoading, router])
-
-  const handleSignOut = async () => {
-    await signOut()
-    window.location.href = '/'
-  }
-
-
-  // Show loading while checking authentication, organization, and subscription
-  if (authLoading || orgLoading || subscription.loading) {
-    return <div className="flex h-screen items-center justify-center">Loading...</div>
-  }
-
-  // Don't render content if not authenticated
   if (!user) {
-    return null // Will redirect
+    redirect('/auth/login')
   }
 
-  // Don't render content if no organization
+  const { organization } = await organizationService.getOrganizationByUserId(user.id)
+
   if (!organization) {
-    return null // Will redirect
-  }
-
-  // Don't render content if no subscription access
-  if (!subscription.hasAccess) {
-    return null // Will redirect to subscription-setup
+    redirect('/onboarding')
   }
 
   return (
-    <DashboardLayout>
+    <>
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold">
@@ -75,9 +34,7 @@ export default function DashboardPage() {
             {organization?.subdomain}.tintops.app
           </p>
         </div>
-        <Button onClick={handleSignOut} variant="outline">
-          Sign Out
-        </Button>
+        <SignOutButton />
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -152,6 +109,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
+    </>
   )
 }

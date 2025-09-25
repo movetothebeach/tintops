@@ -1,12 +1,11 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext } from 'react'
 import { type User } from '@supabase/supabase-js'
-import { auth } from '@/core/lib/auth'
+import { createClient } from '@/core/lib/supabase/client'
 
 interface AuthContextType {
   user: User | null
-  loading: boolean
   signUp: (email: string, password: string, metadata?: Record<string, string>) => Promise<{ data: unknown; error: unknown }>
   signIn: (email: string, password: string) => Promise<{ data: unknown; error: unknown }>
   signOut: () => Promise<{ error: unknown }>
@@ -14,34 +13,42 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
+interface AuthProviderProps {
+  children: React.ReactNode
+  initialUser?: User | null
+}
 
-  useEffect(() => {
-    // Get initial session
-    auth.getSession().then(({ session }) => {
-      setUser(session?.user ?? null)
-      setLoading(false)
+export function AuthProvider({ children, initialUser }: AuthProviderProps) {
+
+  const supabase = createClient()
+
+  const signUp = async (email: string, password: string, metadata?: Record<string, string>) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: metadata ? { data: metadata } : undefined,
     })
+    return { data, error }
+  }
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = auth.onAuthStateChange((user) => {
-      setUser(user)
-      setLoading(false)
+  const signIn = async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
     })
+    return { data, error }
+  }
 
-    return () => subscription.unsubscribe()
-  }, [])
+  const signOut = async () => {
+    const { error } = await supabase.auth.signOut()
+    return { error }
+  }
 
   const value = {
-    user,
-    loading,
-    signUp: auth.signUp,
-    signIn: auth.signIn,
-    signOut: auth.signOut,
+    user: initialUser || null,
+    signUp,
+    signIn,
+    signOut,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

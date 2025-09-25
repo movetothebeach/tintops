@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { organizationService } from '@/core/lib/organizations'
 import { generateSlug, isValidSlug, isReservedSubdomain } from '@/core/utils/slug'
-import { supabase } from '@/core/lib/supabase'
 import { logger } from '@/core/lib/logger'
 
 export async function POST(request: NextRequest) {
@@ -9,16 +8,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { organizationName } = body
 
-    // Get the authenticated user (optional for this endpoint)
-    const authHeader = request.headers.get('Authorization')
-    if (authHeader) {
-      const token = authHeader.replace('Bearer ', '')
-      const { error: authError } = await supabase.auth.getUser(token)
-
-      if (authError) {
-        return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 })
-      }
-    }
+    // This endpoint works with or without auth
+    // No need to check user authentication here
 
     // Validate input
     if (!organizationName || typeof organizationName !== 'string') {

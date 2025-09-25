@@ -1,85 +1,29 @@
-'use client'
-
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { useAuth } from '@/core/contexts/AuthContext'
-import { supabase } from '@/core/lib/supabase'
-import { logger } from '@/core/lib/logger'
-import { Loader2 } from 'lucide-react'
+import { createServerClient } from '@/core/lib/supabase/server'
+import { organizationService } from '@/core/lib/organizations'
 
-export default function Home() {
-  const [checking, setChecking] = useState(true)
-  const { user, loading: authLoading } = useAuth()
-  const router = useRouter()
+export default async function Home() {
+  // Check authentication server-side
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
 
-  useEffect(() => {
-    async function checkUserAndRedirect() {
-      try {
-        // Wait for auth to load
-        if (authLoading) return
+  // If authenticated, check organization and redirect accordingly
+  if (user) {
+    const { organization } = await organizationService.getOrganizationByUserId(user.id)
 
-        // If not authenticated, show marketing page
-        if (!user) {
-          setChecking(false)
-          return
-        }
-
-        // User is authenticated - check if they have an organization
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session) {
-          const response = await fetch('/api/organizations', {
-            headers: {
-              'Authorization': `Bearer ${session.access_token}`,
-            },
-          })
-
-          if (response.ok) {
-            let organization
-            try {
-              const result = await response.json()
-              organization = result.organization
-            } catch (jsonError) {
-              logger.error('Failed to parse organization response', jsonError)
-              // Don't throw here since this is just checking if user has org
-              return
-            }
-            if (organization) {
-              // Has organization - redirect to dashboard (dashboard will handle subscription check)
-              router.push('/dashboard')
-              return
-            } else {
-              // No organization - redirect to onboarding
-              router.push('/onboarding')
-              return
-            }
-          }
-        }
-
-        // Fallback - show marketing page
-        setChecking(false)
-      } catch (error) {
-        logger.error('Error checking user state', error)
-        setChecking(false)
-      }
+    if (organization) {
+      // Has organization - redirect to dashboard
+      redirect('/dashboard')
+    } else {
+      // No organization - redirect to onboarding
+      redirect('/onboarding')
     }
-
-    checkUserAndRedirect()
-  }, [user, authLoading, router])
-
-  // Show loading while checking authentication and organization state
-  if (authLoading || checking) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="flex items-center space-x-2">
-          <Loader2 className="h-6 w-6 animate-spin" />
-          <span className="text-sm font-medium">Loading...</span>
-        </div>
-      </div>
-    )
   }
+
+  // Not authenticated - show marketing page
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">

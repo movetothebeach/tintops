@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { AuthProvider } from "@/core/contexts/AuthContext";
-import { OrganizationProvider } from "@/core/contexts/OrganizationContext";
+import { createServerClient } from "@/core/lib/supabase/server";
+import ClientProviders from "@/components/providers/ClientProviders";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,21 +19,24 @@ export const metadata: Metadata = {
   description: "Complete CRM solution for window tinting shops",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const supabase = await createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <AuthProvider>
-          <OrganizationProvider>
-            {children}
-          </OrganizationProvider>
-        </AuthProvider>
+        <ClientProviders user={user}>
+          {children}
+        </ClientProviders>
       </body>
     </html>
   );

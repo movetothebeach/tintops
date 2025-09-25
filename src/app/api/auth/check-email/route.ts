@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/core/lib/supabase'
+import { createServiceClient } from '@/core/lib/supabase/server'
 import { logger } from '@/core/lib/logger'
 import { z } from 'zod'
 
@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { email } = checkEmailSchema.parse(body)
 
-    const adminClient = createAdminClient()
+    const adminClient = await createServiceClient()
 
     // Check if user already exists with this email
     const { data, error } = await adminClient.auth.admin.listUsers()

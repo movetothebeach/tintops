@@ -116,5 +116,3 @@ You're on the right track when:
 Ask about service responsibilities, investigate existing patterns, consider the production implications, think through failure scenarios, and choose the path that serves users reliably.
 
 The goal is software that works correctly, fails gracefully, and can be maintained by a team over time.
-
-## Read all MD files under /planning

@@ -29,7 +29,7 @@ Core Innovation: Same data appears in multiple places based on context. A custom
 
 Business Model
 Tint shops sign up for TintOps
-They pay us monthly ($97/mo)(subject to change) or yearly ($970/yr(subject to change)) via Stripe
+They pay us monthly via Stripe
 Each shop gets their own isolated account (multi-tenant)
 We automate their customer communications
 Core Architecture Decisions
@@ -51,7 +51,6 @@ Key Business Rules
 Each tint shop is a separate "Organization" (multi-tenant)
 SMS consent: Web form submission = consent(subject to change) (with disclosure)
 All automations are OFF by default (must be explicitly enabled)
-Rate limits: Max 3 SMS per customer per day (definitely subject to change)
 Stripe handles our billing (tint shops pay us)
 Organizations must have active subscription to use features
 Current Code Patterns
