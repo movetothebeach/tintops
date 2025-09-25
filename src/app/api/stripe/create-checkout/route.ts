@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
       ],
       mode: 'subscription',
       subscription_data: {
-        trial_period_days: trialDays,
+        ...(trialDays > 0 && { trial_period_days: trialDays }),
         metadata: {
           organizationId: organization.id,
         },
