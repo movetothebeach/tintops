@@ -62,6 +62,12 @@ export async function POST(request: NextRequest) {
         const subscription = event.data.object as Stripe.Subscription & {
           current_period_end?: number
           cancel_at_period_end?: boolean
+          items?: {
+            data: Array<{
+              current_period_end?: number
+              current_period_start?: number
+            }>
+          }
         }
 
         // Stripe best practice: Make idempotent by checking current state
@@ -101,8 +107,8 @@ export async function POST(request: NextRequest) {
             periodEnd = new Date(subscription.current_period_end * 1000).toISOString()
           }
           // Check in subscription items (other webhook formats)
-          else if ((subscription as any).items?.data?.[0]?.current_period_end) {
-            periodEnd = new Date((subscription as any).items.data[0].current_period_end * 1000).toISOString()
+          else if (subscription.items?.data?.[0]?.current_period_end) {
+            periodEnd = new Date(subscription.items.data[0].current_period_end * 1000).toISOString()
           }
           // For trialing subscriptions, use trial_end as fallback
           else if (subscription.status === 'trialing' && subscription.trial_end) {
