@@ -12,6 +12,7 @@ interface OrganizationContextType {
   organization: Organization | null
   loading: boolean
   refetch: () => Promise<void>
+  setOrganization: (org: Organization) => void
 }
 
 const OrganizationContext = createContext<OrganizationContextType | undefined>(undefined)
@@ -28,6 +29,7 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
       return
     }
 
+    setLoading(true)
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
@@ -63,6 +65,11 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
     }
   }, [user])
 
+  const handleSetOrganization = useCallback((org: Organization) => {
+    setOrganization(org)
+    setLoading(false)
+  }, [])
+
   useEffect(() => {
     fetchOrganization()
   }, [user, fetchOrganization])
@@ -71,6 +78,7 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
     organization,
     loading,
     refetch: fetchOrganization,
+    setOrganization: handleSetOrganization,
   }
 
   return (

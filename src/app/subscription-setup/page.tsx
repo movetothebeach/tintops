@@ -23,14 +23,9 @@ export default function SubscriptionSetupPage() {
   const router = useRouter()
 
   useEffect(() => {
-    // Redirect if already has subscription
-    if (!subscription.loading && subscription.hasAccess) {
-      router.push('/dashboard')
-      return
-    }
-
     async function fetchProducts() {
-      if (authLoading || orgLoading) return
+      // Wait for all data to load
+      if (authLoading || orgLoading || subscription.loading) return
 
       if (!user) {
         router.push('/auth/login')
@@ -39,6 +34,12 @@ export default function SubscriptionSetupPage() {
 
       if (!organization) {
         router.push('/onboarding')
+        return
+      }
+
+      // Redirect if already has subscription
+      if (subscription.hasAccess) {
+        router.push('/dashboard')
         return
       }
 

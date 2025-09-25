@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -14,7 +14,6 @@ import { supabase } from '@/core/lib/supabase'
 import { logger } from '@/core/lib/logger'
 
 export default function BillingPage() {
-  const [loading, setLoading] = useState(false)
   const { user, loading: authLoading } = useAuth()
   const { organization, loading: orgLoading } = useOrganization()
   const subscription = useSubscription()

@@ -11,6 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input'
 import { Loader2 } from 'lucide-react'
 import { useAuth } from '@/core/contexts/AuthContext'
+import { useOrganization } from '@/core/contexts/OrganizationContext'
 import { supabase } from '@/core/lib/supabase'
 import { logger } from '@/core/lib/logger'
 
@@ -35,6 +36,7 @@ export default function OnboardingPage() {
   const [initializing, setInitializing] = useState(true)
   const [redirecting, setRedirecting] = useState(false)
   const { user, loading: authLoading } = useAuth()
+  const { setOrganization } = useOrganization()
   const router = useRouter()
 
   const form = useForm<OnboardingForm>({
@@ -214,7 +216,12 @@ export default function OnboardingPage() {
         return
       }
 
-      // Success! Redirect to subscription setup to select a plan
+      // Success! Update the context with the created organization
+      if (data.organization) {
+        setOrganization(data.organization)
+      }
+
+      // Redirect to subscription setup to select a plan
       router.push('/subscription-setup')
     } catch {
       setError('An unexpected error occurred')

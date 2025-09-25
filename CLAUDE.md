@@ -62,6 +62,11 @@ Never acceptable: Temporary fixes that stay permanent, bypassing proper error ha
 ### Code Quality Violations
 Never acceptable: Silently failing operations, assuming external services always work, leaving debugging code in production.
 
+## 🏛️ State Management Architecture
+
+### OrganizationContext
+The app uses OrganizationContext because multiple components need organization data - the sidebar shows the org name, the dashboard displays org details, subscription checks need `is_active`, etc. Without it, every component would fetch the same data separately, causing redundant API calls and potential inconsistencies. The context fetches once and shares everywhere.
+
 ## 🔍 Investigation Patterns
 
 ### When You See Potential Issues
