@@ -69,7 +69,7 @@ export function OnboardingForm({ defaultFullName = '' }: OnboardingFormProps) {
 
         if (response.ok) {
           const data = await response.json()
-          if (data.subdomain && !subdomain) {
+          if (data.subdomain && subdomainGenerated !== false) {
             setSubdomain(data.subdomain)
             setSubdomainGenerated(true)
           }
