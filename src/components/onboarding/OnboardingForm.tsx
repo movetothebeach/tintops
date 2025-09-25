@@ -153,7 +153,7 @@ export function OnboardingForm({ defaultFullName = '' }: OnboardingFormProps) {
           {isCheckingAvailability && (
             <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
           )}
-          {subdomainGenerated && !isGeneratingSubdomain && (
+          {subdomain && subdomainGenerated && !isGeneratingSubdomain && (
             <span className="text-xs text-green-600">✓ Auto-generated</span>
           )}
           {!subdomainGenerated && subdomainAvailable === true && !isCheckingAvailability && (

@@ -105,6 +105,11 @@ You're on the right track when:
 - **Explicit over implicit** - Clear types, clear error messages, clear intent
 - **Production-ready from the start** - Not "we'll fix it later"
 
+### Build Flow
+- test build
+- commit changes
+- push
+
 ### Think In Terms Of
 - **Service responsibilities** rather than feature boundaries
 - **User experience** under both success and failure conditions
