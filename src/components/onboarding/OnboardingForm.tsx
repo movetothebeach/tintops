@@ -54,6 +54,11 @@ export function OnboardingForm({ defaultFullName = '' }: OnboardingFormProps) {
       return
     }
 
+    // Don't auto-generate if user has manually edited
+    if (subdomainGenerated === false) {
+      return
+    }
+
     const timer = setTimeout(async () => {
       setIsGeneratingSubdomain(true)
       try {
@@ -69,7 +74,7 @@ export function OnboardingForm({ defaultFullName = '' }: OnboardingFormProps) {
 
         if (response.ok) {
           const data = await response.json()
-          if (data.subdomain && subdomainGenerated !== false) {
+          if (data.subdomain) {
             setSubdomain(data.subdomain)
             setSubdomainGenerated(true)
           }
@@ -82,7 +87,7 @@ export function OnboardingForm({ defaultFullName = '' }: OnboardingFormProps) {
     }, 500)
 
     return () => clearTimeout(timer)
-  }, [organizationName, subdomain])
+  }, [organizationName, subdomainGenerated])
 
   return (
     <form action={formAction} className="space-y-4">
