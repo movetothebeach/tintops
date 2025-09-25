@@ -88,7 +88,7 @@ export function getTrialDaysForPrice(products: StripeProduct[], priceId: string)
     }
   }
 
-  // Fallback to default if not specified in Stripe
-  return 14
+  // No trial if not specified in Stripe
+  return 0
 }
 
