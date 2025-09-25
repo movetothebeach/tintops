@@ -66,6 +66,14 @@ export async function POST(request: NextRequest) {
             data: Array<{
               current_period_end?: number
               current_period_start?: number
+              price: {
+                id: string
+                unit_amount: number | null
+                recurring?: {
+                  interval: string
+                } | null
+                product: string | { id: string }
+              }
             }>
           }
         }
@@ -73,7 +81,7 @@ export async function POST(request: NextRequest) {
         // Stripe best practice: Make idempotent by checking current state
         const { data: currentOrg, error: fetchError } = await adminClient
           .from('organizations')
-          .select('subscription_status, stripe_subscription_id, is_active, cancel_at_period_end')
+          .select('subscription_status, stripe_subscription_id, is_active, cancel_at_period_end, stripe_price_id, subscription_amount')
           .eq('stripe_customer_id', subscription.customer as string)
           .single()
 
@@ -93,11 +101,18 @@ export async function POST(request: NextRequest) {
           subscription.status === 'trialing' ||
           subscription.status === 'past_due'  // Grace period during payment retries
 
+        // Extract price data for comparison and updates
+        const priceData = subscription.items?.data?.[0]?.price
+        const newPriceId = priceData?.id
+        const newAmount = priceData?.unit_amount
+
         // Only update if state has actually changed (idempotency)
         if (currentOrg.subscription_status !== subscription.status ||
             currentOrg.stripe_subscription_id !== subscription.id ||
             currentOrg.is_active !== shouldBeActive ||
-            currentOrg.cancel_at_period_end !== (subscription.cancel_at_period_end || false)) {
+            currentOrg.cancel_at_period_end !== (subscription.cancel_at_period_end || false) ||
+            currentOrg.stripe_price_id !== newPriceId ||
+            currentOrg.subscription_amount !== newAmount) {
 
           // Get current_period_end from subscription or subscription items
           let periodEnd: string | null = null
@@ -115,12 +130,22 @@ export async function POST(request: NextRequest) {
             periodEnd = new Date(subscription.trial_end * 1000).toISOString()
           }
 
+          // Extract product ID from price data
+          const productId = priceData ? (
+            typeof priceData.product === 'string'
+              ? priceData.product
+              : priceData.product?.id
+          ) : null
+
           const { error } = await adminClient
             .from('organizations')
             .update({
               stripe_subscription_id: subscription.id,
               subscription_status: subscription.status,
-              subscription_plan: subscription.items.data[0].price.recurring?.interval || 'monthly',
+              subscription_plan: priceData?.recurring?.interval || 'monthly',
+              stripe_price_id: newPriceId || null,
+              stripe_product_id: productId || null,
+              subscription_amount: newAmount || null,
               current_period_end: periodEnd,
               trial_ends_at: subscription.trial_end
                 ? new Date(subscription.trial_end * 1000).toISOString()
