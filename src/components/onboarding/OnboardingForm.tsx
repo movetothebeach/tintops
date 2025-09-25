@@ -46,7 +46,7 @@ export function OnboardingForm({ defaultFullName = '' }: OnboardingFormProps) {
   const [subdomain, setSubdomain] = useState('')
   const [organizationName, setOrganizationName] = useState('')
   const [isGeneratingSubdomain, setIsGeneratingSubdomain] = useState(false)
-  const [subdomainGenerated, setSubdomainGenerated] = useState(false)
+  const [subdomainGenerated, setSubdomainGenerated] = useState(true)
 
   // Auto-generate subdomain when organization name changes
   useEffect(() => {
@@ -141,11 +141,9 @@ export function OnboardingForm({ defaultFullName = '' }: OnboardingFormProps) {
             .tintops.app
           </span>
         </div>
-        {subdomainGenerated && (
-          <p className="text-xs text-muted-foreground">
-            Auto-generated from your shop name. You can edit this if needed.
-          </p>
-        )}
+        <p className="text-xs text-muted-foreground">
+          Your customers will visit this URL to book appointments and view your services
+        </p>
       </div>
 
       {state.error && (
