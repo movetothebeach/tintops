@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
         // Stripe best practice: Make idempotent by checking current state
         const { data: currentOrg, error: fetchError } = await adminClient
           .from('organizations')
-          .select('subscription_status, stripe_subscription_id, is_active')
+          .select('subscription_status, stripe_subscription_id, is_active, cancel_at_period_end')
           .eq('stripe_customer_id', subscription.customer as string)
           .single()
 
@@ -90,7 +90,8 @@ export async function POST(request: NextRequest) {
         // Only update if state has actually changed (idempotency)
         if (currentOrg.subscription_status !== subscription.status ||
             currentOrg.stripe_subscription_id !== subscription.id ||
-            currentOrg.is_active !== shouldBeActive) {
+            currentOrg.is_active !== shouldBeActive ||
+            currentOrg.cancel_at_period_end !== (subscription.cancel_at_period_end || false)) {
 
           // For trialing subscriptions, use trial_end as current_period_end if current_period_end is missing
           let periodEnd: string | null = null
