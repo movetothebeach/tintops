@@ -44,8 +44,8 @@ export function LoginForm() {
         return
       }
 
-      // Redirect to root path - let centralized routing handle org check
-      router.push('/')
+      // Redirect to dashboard - middleware handles auth checks
+      router.push('/dashboard')
     } catch {
       setError('An unexpected error occurred')
     } finally {

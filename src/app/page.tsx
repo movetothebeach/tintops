@@ -1,33 +1,10 @@
-import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { createServerClient } from '@/core/lib/supabase/server'
 
-export default async function Home() {
-  // Check authentication server-side
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  // If authenticated, check organization and redirect accordingly
-  if (user) {
-    // First check if user has a record in users table with organization_id
-    const { data: userData } = await supabase
-      .from('users')
-      .select('organization_id')
-      .eq('id', user.id)
-      .single()
-
-    if (userData?.organization_id) {
-      // Has organization - redirect to dashboard
-      redirect('/dashboard')
-    } else {
-      // No organization - redirect to onboarding
-      redirect('/onboarding')
-    }
-  }
-
-  // Not authenticated - show marketing page
+export default function Home() {
+  // Pure marketing page - no auth checks, no database queries
+  // Let middleware handle all authentication routing
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -100,7 +77,7 @@ export default async function Home() {
           {/* Development Status */}
           <div className="mt-16 p-4 bg-green-50 border border-green-200 rounded-lg">
             <p className="text-sm text-green-800">
-              <strong>Development Status:</strong> Phase 4 Complete ✅ - Authentication, Organizations, Security Ready for Phase 5!
+              <strong>Development Status:</strong> Edge Auth + Client Dashboard Complete ✅
             </p>
           </div>
         </div>
