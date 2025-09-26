@@ -1,8 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { updateSession } from '@/core/lib/supabase/middleware'
 import { validateCSRFToken, setCSRFToken } from '@/core/lib/csrf'
-import { createServerClient } from '@supabase/ssr'
-import { Database } from '@/core/types/database'
 
 // Routes that don't require authentication
 const PUBLIC_ROUTES = [
@@ -50,7 +48,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Update Supabase session
-  const { supabaseResponse, user } = await updateSession(request)
+  const { supabaseResponse, supabase, user } = await updateSession(request)
 
   // Handle API route authentication
   if (pathname.startsWith('/api/')) {
@@ -136,24 +134,7 @@ export async function middleware(request: NextRequest) {
 
   // For dashboard and other org-required routes, check organization at edge
   if (pathname.startsWith('/dashboard') || pathname.startsWith('/billing')) {
-    // Create a Supabase client with the user's cookies
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll()
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              response.cookies.set(name, value, options)
-            })
-          },
-        },
-      }
-    )
-
+    // Use the authenticated supabase client from updateSession
     // First get the user's organization_id from users table
     const { data: userData } = await supabase
       .from('users')
@@ -192,23 +173,7 @@ export async function middleware(request: NextRequest) {
 
   // For subscription-setup page, check if already has active subscription
   if (pathname === '/subscription-setup' && user) {
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll()
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              response.cookies.set(name, value, options)
-            })
-          },
-        },
-      }
-    )
-
+    // Use the authenticated supabase client from updateSession
     // Get user's organization
     const { data: userData } = await supabase
       .from('users')
