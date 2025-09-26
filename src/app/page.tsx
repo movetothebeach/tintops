@@ -3,7 +3,6 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { createServerClient } from '@/core/lib/supabase/server'
-import { organizationService } from '@/core/lib/organizations'
 
 export default async function Home() {
   // Check authentication server-side
@@ -12,9 +11,14 @@ export default async function Home() {
 
   // If authenticated, check organization and redirect accordingly
   if (user) {
-    const { organization } = await organizationService.getOrganizationByUserId(user.id)
+    // First check if user has a record in users table with organization_id
+    const { data: userData } = await supabase
+      .from('users')
+      .select('organization_id')
+      .eq('id', user.id)
+      .single()
 
-    if (organization) {
+    if (userData?.organization_id) {
       // Has organization - redirect to dashboard
       redirect('/dashboard')
     } else {
