@@ -1,4 +1,4 @@
-import { createServiceClient } from '@/core/lib/supabase/server'
+import { createServerClient, createServiceClient } from '@/core/lib/supabase/server'
 import { Database } from '@/core/types/database'
 import { isReservedSubdomain } from '@/core/utils/slug'
 import { logger } from './logger'
@@ -91,9 +91,10 @@ export const organizationService = {
 
   async getOrganizationByUserId(userId: string): Promise<{ organization: Organization | null; error: string | null }> {
     try {
-      const adminClient = await createServiceClient()
+      // Use regular server client - RLS policies will handle access control
+      const supabase = await createServerClient()
 
-      const { data: user, error: userError } = await adminClient
+      const { data: user, error: userError } = await supabase
         .from('users')
         .select('organization_id, organizations(*)')
         .eq('id', userId)
@@ -117,9 +118,10 @@ export const organizationService = {
         return false
       }
 
-      const adminClient = await createServiceClient()
+      // Use regular server client - this is a simple read operation
+      const supabase = await createServerClient()
 
-      const { data, error } = await adminClient
+      const { data, error } = await supabase
         .from('organizations')
         .select('subdomain')
         .eq('subdomain', subdomain)
