@@ -154,11 +154,22 @@ export async function middleware(request: NextRequest) {
       }
     )
 
-    // Fetch organization data at edge
+    // First get the user's organization_id from users table
+    const { data: userData } = await supabase
+      .from('users')
+      .select('organization_id')
+      .eq('id', user.id)
+      .single()
+
+    if (!userData?.organization_id) {
+      return NextResponse.redirect(new URL('/onboarding', request.url))
+    }
+
+    // Then fetch organization data
     const { data: organization } = await supabase
       .from('organizations')
       .select('id, is_active, subscription_status, trial_ends_at')
-      .eq('owner_id', user.id)
+      .eq('id', userData.organization_id)
       .single()
 
     if (!organization) {
@@ -198,10 +209,22 @@ export async function middleware(request: NextRequest) {
       }
     )
 
+    // Get user's organization
+    const { data: userData } = await supabase
+      .from('users')
+      .select('organization_id')
+      .eq('id', user.id)
+      .single()
+
+    if (!userData?.organization_id) {
+      // No organization yet, stay on subscription-setup
+      return response
+    }
+
     const { data: organization } = await supabase
       .from('organizations')
       .select('is_active')
-      .eq('owner_id', user.id)
+      .eq('id', userData.organization_id)
       .single()
 
     if (organization?.is_active) {
