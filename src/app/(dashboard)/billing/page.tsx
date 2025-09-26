@@ -1,28 +1,38 @@
+'use client'
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { CheckCircle, Clock, AlertTriangle } from 'lucide-react'
 import { BillingPortalButton } from '@/components/billing/BillingPortalButton'
-import { getUserWithOrganization } from '@/core/lib/data/cached-queries'
-import { redirect } from 'next/navigation'
+import { BillingSkeleton } from '@/components/skeletons/BillingSkeleton'
+import { useOrganization } from '@/hooks/useOrganization'
 
-export default async function BillingPage() {
-  // Use cached queries - these will be the same instances from the layout
-  const { user, organization } = await getUserWithOrganization()
+export default function BillingPage() {
+  const { organization, isLoading, isError } = useOrganization()
 
-  // Safety checks (should not happen as layout already redirects)
-  if (!user || !organization) {
-    redirect('/auth/login')
+  if (isLoading) {
+    return <BillingSkeleton />
+  }
+
+  if (isError || !organization) {
+    return (
+      <div className="p-6">
+        <div className="text-red-600">
+          Error loading billing data. Please try refreshing the page.
+        </div>
+      </div>
+    )
   }
 
   // Prepare subscription data
   const subscription = {
-    isActive: organization.subscription_status === 'active',
-    isTrialing: organization.subscription_status === 'trialing',
-    isPastDue: organization.subscription_status === 'past_due',
-    isCanceled: organization.subscription_status === 'canceled' || !organization.subscription_status,
-    plan: organization.subscription_plan,
-    trialEndsAt: organization.trial_ends_at ? new Date(organization.trial_ends_at) : null,
-    currentPeriodEnd: organization.current_period_end ? new Date(organization.current_period_end) : null,
+    isActive: organization.subscriptionStatus === 'active',
+    isTrialing: organization.subscriptionStatus === 'trialing',
+    isPastDue: organization.subscriptionStatus === 'past_due',
+    isCanceled: organization.subscriptionStatus === 'canceled' || !organization.subscriptionStatus,
+    plan: organization.subscriptionPlan,
+    trialEndsAt: organization.trialEndsAt ? new Date(organization.trialEndsAt) : null,
+    currentPeriodEnd: organization.currentPeriodEnd ? new Date(organization.currentPeriodEnd) : null,
   }
 
   const getSubscriptionBadge = () => {

@@ -2,6 +2,8 @@
 
 import { AuthProvider } from '@/core/contexts/AuthContext'
 import { User } from '@supabase/supabase-js'
+import { SWRConfig } from 'swr'
+import { swrConfig } from '@/core/lib/swr-config'
 
 interface ClientProvidersProps {
   children: React.ReactNode
@@ -10,8 +12,10 @@ interface ClientProvidersProps {
 
 export default function ClientProviders({ children, user }: ClientProvidersProps) {
   return (
-    <AuthProvider initialUser={user}>
-      {children}
-    </AuthProvider>
+    <SWRConfig value={swrConfig}>
+      <AuthProvider initialUser={user}>
+        {children}
+      </AuthProvider>
+    </SWRConfig>
   )
 }

@@ -1,30 +1,48 @@
-import { redirect } from 'next/navigation'
+'use client'
+
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import useSWR from 'swr'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { createServerClient } from '@/core/lib/supabase/server'
-import { organizationService } from '@/core/lib/organizations'
 import { OnboardingForm } from '@/components/onboarding/OnboardingForm'
+import { Skeleton } from '@/components/ui/skeleton'
 
+export default function OnboardingPage() {
+  const router = useRouter()
+  const { data: userData } = useSWR('/api/user')
+  const { data: orgData } = useSWR('/api/organization')
 
-export default async function OnboardingPage() {
-  const supabase = await createServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  // Check authentication
-  if (!user) {
-    redirect('/auth/login')
-  }
-
-  // Check if user already has an organization
-  const { organization } = await organizationService.getOrganizationByUserId(user.id)
-  if (organization) {
-    redirect('/dashboard')
-  }
+  useEffect(() => {
+    // If user already has organization, redirect to dashboard
+    if (orgData?.organization) {
+      router.push('/dashboard')
+    }
+  }, [orgData, router])
 
   // Get user's full name from metadata
-  const fullName = user.user_metadata?.full_name || ''
+  const fullName = userData?.user?.metadata?.full_name || ''
 
+  if (!userData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-md space-y-6">
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-8 w-3/4" />
+              <Skeleton className="h-4 w-full mt-2" />
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12">

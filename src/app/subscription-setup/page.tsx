@@ -1,37 +1,45 @@
-import { redirect } from 'next/navigation'
+'use client'
+
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import useSWR from 'swr'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Check } from 'lucide-react'
-import { createServerClient } from '@/core/lib/supabase/server'
-import { organizationService } from '@/core/lib/organizations'
-import { getActiveProducts } from '@/core/lib/stripe-products'
-import { getPricingDisplayInfo } from '@/core/lib/stripe-utils'
+import { getPricingDisplayInfo, StripeProduct } from '@/core/lib/stripe-utils'
 import { CheckoutButton } from '@/components/subscription/CheckoutButton'
+import { SubscriptionSkeleton } from '@/components/skeletons/SubscriptionSkeleton'
 
-export default async function SubscriptionSetupPage() {
-  const supabase = await createServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+export default function SubscriptionSetupPage() {
+  const router = useRouter()
+  const { data: orgData } = useSWR('/api/organization')
+  const { data: productsData, error } = useSWR('/api/products')
 
-  // Check authentication
-  if (!user) {
-    redirect('/auth/login')
+  useEffect(() => {
+    // If already has active subscription, redirect to dashboard
+    if (orgData?.organization?.isActive) {
+      router.push('/dashboard')
+    }
+  }, [orgData, router])
+
+  if (!orgData || !productsData) {
+    return <SubscriptionSkeleton />
   }
 
-  // Check organization
-  const { organization } = await organizationService.getOrganizationByUserId(user.id)
-  if (!organization) {
-    redirect('/onboarding')
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container max-w-6xl mx-auto px-4 py-16">
+          <div className="text-red-600">
+            Error loading products. Please try refreshing the page.
+          </div>
+        </div>
+      </div>
+    )
   }
 
-  // Check if already has subscription
-  if (organization.is_active) {
-    redirect('/dashboard')
-  }
-
-  // Fetch products
-  const products = await getActiveProducts()
+  const { organization } = orgData
+  const { products } = productsData
 
   return (
     <div className="min-h-screen bg-background">
@@ -47,7 +55,7 @@ export default async function SubscriptionSetupPage() {
         </div>
 
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 max-w-5xl mx-auto">
-          {products.map((product, index) => {
+          {products.map((product: StripeProduct, index: number) => {
             const price = product.prices[0]
             const displayInfo = getPricingDisplayInfo(price)
             const isPopular = index === 1 // Mark middle plan as popular

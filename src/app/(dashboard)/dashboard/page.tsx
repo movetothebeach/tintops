@@ -1,18 +1,34 @@
+'use client'
+
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { CreditCard, Users, MessageSquare } from 'lucide-react'
 import { SignOutButton } from '@/components/dashboard/SignOutButton'
-import { getUserWithOrganization } from '@/core/lib/data/cached-queries'
-import { redirect } from 'next/navigation'
+import { DashboardSkeleton } from '@/components/skeletons/DashboardSkeleton'
+import { useUser } from '@/hooks/useUser'
+import { useOrganization } from '@/hooks/useOrganization'
 
-export default async function DashboardPage() {
-  // Use cached queries - these will be the same instances from the layout
-  const { user, organization } = await getUserWithOrganization()
+export default function DashboardPage() {
+  const { user, isLoading: userLoading, isError: userError } = useUser()
+  const { organization, isLoading: orgLoading, isError: orgError } = useOrganization()
 
-  // Safety checks (should not happen as layout already redirects)
+  if (userLoading || orgLoading) {
+    return <DashboardSkeleton />
+  }
+
+  if (userError || orgError) {
+    return (
+      <div className="p-6">
+        <div className="text-red-600">
+          Error loading dashboard data. Please try refreshing the page.
+        </div>
+      </div>
+    )
+  }
+
   if (!user || !organization) {
-    redirect('/auth/login')
+    return <DashboardSkeleton />
   }
 
   return (
@@ -20,10 +36,10 @@ export default async function DashboardPage() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold">
-            {organization?.name || 'Dashboard'}
+            {organization.name || 'Dashboard'}
           </h1>
           <p className="text-muted-foreground">
-            {organization?.subdomain}.tintops.app
+            {organization.subdomain}.tintops.app
           </p>
         </div>
         <SignOutButton />
@@ -42,15 +58,15 @@ export default async function DashboardPage() {
             <div className="space-y-2 text-sm">
               <div>
                 <span className="text-muted-foreground">Name:</span>
-                <p className="font-medium">{organization?.name}</p>
+                <p className="font-medium">{organization.name}</p>
               </div>
               <div>
                 <span className="text-muted-foreground">Subdomain:</span>
-                <p className="font-medium">{organization?.subdomain}.tintops.app</p>
+                <p className="font-medium">{organization.subdomain}.tintops.app</p>
               </div>
               <div>
                 <span className="text-muted-foreground">Owner:</span>
-                <p className="font-medium">{user?.email}</p>
+                <p className="font-medium">{user.email}</p>
               </div>
             </div>
           </CardContent>

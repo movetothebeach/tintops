@@ -1,6 +1,8 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { updateSession } from '@/core/lib/supabase/middleware'
 import { validateCSRFToken, setCSRFToken } from '@/core/lib/csrf'
+import { createServerClient } from '@supabase/ssr'
+import { Database } from '@/core/types/database'
 
 // Routes that don't require authentication
 const PUBLIC_ROUTES = [
@@ -11,6 +13,14 @@ const PUBLIC_ROUTES = [
   '/auth/callback',
   '/api/stripe/webhooks',
   '/api/auth/check-email',
+]
+
+// API routes that require authentication
+const PROTECTED_API_ROUTES = [
+  '/api/user',
+  '/api/organization',
+  '/api/dashboard',
+  '/api/products',
 ]
 
 // Routes that require authentication but not organization
@@ -41,6 +51,20 @@ export async function middleware(request: NextRequest) {
 
   // Update Supabase session
   const { supabaseResponse, user } = await updateSession(request)
+
+  // Handle API route authentication
+  if (pathname.startsWith('/api/')) {
+    const isProtectedAPI = PROTECTED_API_ROUTES.some(route =>
+      pathname.startsWith(route)
+    )
+
+    if (isProtectedAPI && !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+  }
 
   // Add comprehensive security headers to all responses
   const response = supabaseResponse
@@ -110,9 +134,80 @@ export async function middleware(request: NextRequest) {
     return response
   }
 
-  // For protected routes, we need to check organization
-  // This will be handled by the route itself since we need to fetch from DB
-  // Middleware just ensures authentication
+  // For dashboard and other org-required routes, check organization at edge
+  if (pathname.startsWith('/dashboard') || pathname.startsWith('/billing')) {
+    // Create a Supabase client with the user's cookies
+    const supabase = createServerClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll()
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              response.cookies.set(name, value, options)
+            })
+          },
+        },
+      }
+    )
+
+    // Fetch organization data at edge
+    const { data: organization } = await supabase
+      .from('organizations')
+      .select('id, is_active, subscription_status, trial_ends_at')
+      .eq('owner_id', user.id)
+      .single()
+
+    if (!organization) {
+      return NextResponse.redirect(new URL('/onboarding', request.url))
+    }
+
+    // Check subscription status
+    if (!organization.is_active) {
+      // Check if still in trial period
+      if (organization.subscription_status === 'trialing' && organization.trial_ends_at) {
+        const trialEndsAt = new Date(organization.trial_ends_at)
+        if (trialEndsAt < new Date()) {
+          return NextResponse.redirect(new URL('/subscription-setup', request.url))
+        }
+      } else if (organization.subscription_status !== 'active') {
+        return NextResponse.redirect(new URL('/subscription-setup', request.url))
+      }
+    }
+  }
+
+  // For subscription-setup page, check if already has active subscription
+  if (pathname === '/subscription-setup' && user) {
+    const supabase = createServerClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll()
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              response.cookies.set(name, value, options)
+            })
+          },
+        },
+      }
+    )
+
+    const { data: organization } = await supabase
+      .from('organizations')
+      .select('is_active')
+      .eq('owner_id', user.id)
+      .single()
+
+    if (organization?.is_active) {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+  }
 
   return response
 }
