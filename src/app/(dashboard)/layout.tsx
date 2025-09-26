@@ -1,25 +1,19 @@
 import { redirect } from 'next/navigation'
-import { createServerClient } from '@/core/lib/supabase/server'
 import { DashboardLayout } from '@/components/dashboard-layout'
-import { organizationService } from '@/core/lib/organizations'
+import { getUserWithOrganization } from '@/core/lib/data/cached-queries'
 
 export default async function DashboardGroupLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const supabase = await createServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // Get user and organization using cached queries
+  const { user, organization } = await getUserWithOrganization()
 
   // Check authentication
   if (!user) {
     redirect('/auth/login')
   }
-
-  // Get user's organization
-  const { organization } = await organizationService.getOrganizationByUserId(user.id)
 
   // Check organization exists
   if (!organization) {

@@ -1,26 +1,18 @@
 import Link from 'next/link'
-import { createServerClient } from '@/core/lib/supabase/server'
-import { organizationService } from '@/core/lib/organizations'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { CreditCard, Users, MessageSquare } from 'lucide-react'
 import { SignOutButton } from '@/components/dashboard/SignOutButton'
+import { getUserWithOrganization } from '@/core/lib/data/cached-queries'
 import { redirect } from 'next/navigation'
 
 export default async function DashboardPage() {
-  const supabase = await createServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // Use cached queries - these will be the same instances from the layout
+  const { user, organization } = await getUserWithOrganization()
 
-  if (!user) {
+  // Safety checks (should not happen as layout already redirects)
+  if (!user || !organization) {
     redirect('/auth/login')
-  }
-
-  const { organization } = await organizationService.getOrganizationByUserId(user.id)
-
-  if (!organization) {
-    redirect('/onboarding')
   }
 
   return (
